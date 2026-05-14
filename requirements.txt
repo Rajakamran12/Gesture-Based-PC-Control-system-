@@ -1,0 +1,17 @@
+# Hand Gesture Recognition - Requirements
+# Optimized for Raspberry Pi 5
+
+# Core dependencies
+opencv-python>=4.5.0
+numpy>=1.19.0
+tensorflow>=2.10.0
+mediapipe>=0.10.0
+
+# Training dependencies
+scikit-learn>=1.0.0
+matplotlib>=3.3.0
+seaborn>=0.11.0
+
+# Optional: For better performance on Raspberry Pi
+# tensorflow-lite-runtime  # Use this instead of full tensorflow for inference only
+

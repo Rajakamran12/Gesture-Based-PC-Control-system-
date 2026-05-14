@@ -1,0 +1,15 @@
+{
+  "name": "gesture-based-pc-control-monorepo",
+  "private": true,
+  "scripts": {
+    "dev": "npm run dev --prefix web-dashboard",
+    "build": "npm run build --prefix web-dashboard",
+    "start": "npm run start --prefix web-dashboard",
+    "lint": "npm run lint --prefix web-dashboard"
+  },
+  "dependencies": {
+    "next": "14.2.35",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  }
+}

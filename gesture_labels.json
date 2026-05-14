@@ -1,0 +1,13 @@
+{
+  "labels": [
+    "closedFist",
+    "fingerCircle",
+    "fingerSymbols",
+    "multiFingerBend",
+    "openPalm",
+    "semiOpenFist",
+    "semiOpenPalm",
+    "singleFingerBend"
+  ],
+  "num_classes": 8
+}

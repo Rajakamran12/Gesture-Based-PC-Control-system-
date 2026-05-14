@@ -1,0 +1,1669 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{amsmath}
+\usepackage{tcolorbox}
+
+\geometry{margin=1in}
+
+% Code listing style
+\lstset{
+    language=bash,
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{blue},
+    commentstyle=\color{green!60!black},
+    stringstyle=\color{red},
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    stepnumber=1,
+    numbersep=5pt,
+    backgroundcolor=\color{gray!10},
+    frame=single,
+    breaklines=true,
+    breakatwhitespace=true,
+    tabsize=2,
+    showstringspaces=false
+}
+
+% Python code style
+\lstdefinestyle{python}{
+    language=Python,
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{blue},
+    commentstyle=\color{green!60!black},
+    stringstyle=\color{red},
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    backgroundcolor=\color{gray!10},
+    frame=single,
+    breaklines=true
+}
+
+% Custom boxes for tips and warnings
+\newtcolorbox{tipbox}{
+    colback=blue!5!white,
+    colframe=blue!75!black,
+    title=\textbf{💡 Tip},
+    fonttitle=\bfseries
+}
+
+\newtcolorbox{warningbox}{
+    colback=orange!5!white,
+    colframe=orange!75!black,
+    title=\textbf{⚠️ Warning},
+    fonttitle=\bfseries
+}
+
+\newtcolorbox{infobox}{
+    colback=green!5!white,
+    colframe=green!75!black,
+    title=\textbf{ℹ️ Information},
+    fonttitle=\bfseries
+}
+
+\title{\Huge\textbf{Complete Guide: Running Hand Gesture Recognition\\on Raspberry Pi}}
+\author{Step-by-Step Beginner's Guide}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{Introduction}
+
+\subsection{What is This Guide About?}
+
+Imagine you have a magic camera that can understand hand gestures! This guide will help you set up a hand gesture recognition system on a Raspberry Pi (a small, affordable computer). Think of it like teaching your computer to recognize when you wave, point, or make different hand shapes.
+
+\begin{infobox}
+\textbf{What You'll Learn:}
+\begin{itemize}
+    \item How to prepare your Raspberry Pi
+    \item How to install all the necessary software
+    \item How to transfer your project files
+    \item How to run the gesture recognition program
+    \item How to fix common problems
+\end{itemize}
+\end{infobox}
+
+\subsection{What Do You Need?}
+
+Before we start, make sure you have:
+
+\begin{itemize}
+    \item \textbf{Raspberry Pi 4 or 5} (with power supply)
+    \item \textbf{MicroSD card} (32GB or larger, with Raspberry Pi OS installed)
+    \item \textbf{USB webcam} or Raspberry Pi Camera Module
+    \item \textbf{Keyboard and mouse} (USB)
+    \item \textbf{Monitor} (with HDMI cable)
+    \item \textbf{Internet connection} (WiFi or Ethernet cable)
+    \item \textbf{Your project files} (from your computer)
+\end{itemize}
+
+\begin{tipbox}
+If you don't have a monitor, you can use SSH (remote connection) from your computer to control the Raspberry Pi. We'll explain this too!
+\end{tipbox}
+
+\section{Understanding the Project}
+
+\subsection{What Does This Project Do?}
+
+This project uses something called \textbf{MediaPipe} (a special tool made by Google) to:
+\begin{enumerate}
+    \item Look at your hand through a camera
+    \item Find important points on your hand (like fingertips)
+    \item Understand what gesture you're making
+    \item Show the result on the screen
+\end{enumerate}
+
+Think of it like this: The camera is the "eyes," MediaPipe is the "brain" that understands hands, and the program shows you what it sees!
+
+\subsection{What Files Do We Need?}
+
+Your project has these important parts:
+
+\begin{verbatim}
+project_folder/
+├── app.py                    ← The main program (this is what we'll run!)
+├── model/                    ← The "brain" files
+│   ├── keypoint_classifier/
+│   │   ├── keypoint_classifier.tflite
+│   │   └── keypoint_classifier_label.csv
+│   └── point_history_classifier/
+│       ├── point_history_classifier.tflite
+│       └── point_history_classifier_label.csv
+└── utils/                    ← Helper tools
+    └── cvfpscalc.py
+\end{verbatim}
+
+\begin{warningbox}
+\textbf{Important:} Make sure you have ALL these files! The program won't work without them.
+\end{warningbox}
+
+\section{Step 1: First Time Setup of Raspberry Pi}
+
+\subsection{What is This Step?}
+
+This is like turning on a new computer for the first time. We need to make sure everything is working!
+
+\subsection{Step 1.0: Two Ways to Use Your Raspberry Pi}
+
+Before we start, you should know there are two main ways to control your Raspberry Pi:
+
+\subsubsection{Method A: Desktop Mode (With Monitor)}
+
+If you have a monitor, keyboard, and mouse connected directly to your Pi:
+
+\begin{enumerate}
+    \item You'll see a desktop (like Windows or Mac)
+    \item Click the Terminal icon (black box with \texttt{>\_}) in the top menu bar
+    \item Or press \texttt{Ctrl + Alt + T} to open Terminal
+    \item You'll see: \texttt{pi@raspberrypi:\~\$}
+\end{enumerate}
+
+\begin{infobox}
+\textbf{Desktop Mode Benefits:}
+\begin{itemize}
+    \item See everything visually
+    \item Easy to use if you're new to Linux
+    \item Can see the camera window directly
+\end{itemize}
+\end{infobox}
+
+\subsubsection{Method B: SSH (Remote from Your Computer)}
+
+If you want to control your Pi from your Windows/Mac computer (no monitor needed):
+
+\textbf{Step 1: Find Your Pi's IP Address}
+
+On your Pi (if you have access), open Terminal and type:
+\begin{lstlisting}
+hostname -I
+\end{lstlisting}
+
+You'll see something like: \texttt{192.168.1.100}
+
+\textbf{Step 2: Enable SSH on Pi}
+
+If SSH is not enabled:
+\begin{lstlisting}
+sudo systemctl enable ssh
+sudo systemctl start ssh
+\end{lstlisting}
+
+\textbf{Step 3: Connect from Your Computer}
+
+\textbf{On Windows:}
+\begin{enumerate}
+    \item Open PowerShell or Command Prompt
+    \item Type:
+    \begin{lstlisting}
+    ssh pi@192.168.1.100
+    \end{lstlisting}
+    (Replace with your Pi's actual IP address)
+    \item Enter password when asked (default is \texttt{raspberry})
+\end{enumerate}
+
+\textbf{On Mac/Linux:}
+\begin{lstlisting}
+ssh pi@192.168.1.100
+\end{lstlisting}
+
+\begin{tipbox}
+Once connected via SSH, you'll see the same terminal prompt and can run all the same commands!
+\end{tipbox}
+
+\subsection{Step 1.1: Turn On Your Raspberry Pi}
+
+\begin{enumerate}
+    \item Connect your Raspberry Pi to:
+    \begin{itemize}
+        \item Power supply (plug it in!)
+        \item Monitor (using HDMI cable)
+        \item Keyboard and mouse (USB ports)
+        \item Internet (WiFi or Ethernet cable)
+    \end{itemize}
+    
+    \item Turn it on by plugging in the power supply
+    \item Wait for it to start (you'll see a desktop appear)
+\end{enumerate}
+
+\begin{tipbox}
+If nothing appears on the screen, check:
+\begin{itemize}
+    \item Is the power LED on? (should be red)
+    \item Is the HDMI cable connected properly?
+    \item Is the monitor turned on?
+\end{itemize}
+\end{tipbox}
+
+\subsection{Step 1.2: Open the Terminal}
+
+The terminal is like a command center where we type instructions to the computer.
+
+\begin{enumerate}
+    \item Look for a black icon with a \texttt{>\_} symbol (usually in the top menu bar)
+    \item Click on it to open the Terminal
+    \item You should see something like: \texttt{pi@raspberrypi:\~\$}
+\end{enumerate}
+
+\begin{infobox}
+\textbf{What you're seeing:}
+\begin{itemize}
+    \item \texttt{pi} = your username
+    \item \texttt{raspberrypi} = your computer's name
+    \item \texttt{\~} = you're in your home folder
+    \item \texttt{\$} = ready for your command
+\end{itemize}
+\end{infobox}
+
+\subsection{Step 1.2.1: Essential Linux Commands You'll Need}
+
+Before we continue, here are the most important commands you'll use. Think of these as your toolkit:
+
+\textbf{Navigation Commands:}
+\begin{lstlisting}
+pwd                    # Shows where you are (current folder)
+ls                     # List files in current folder
+ls -la                 # List all files (including hidden ones)
+cd folder_name         # Go into a folder
+cd ..                  # Go up one folder level
+cd ~                   # Go to your home folder
+cd /home/pi            # Go to a specific location
+\end{lstlisting}
+
+\textbf{File Operations:}
+\begin{lstlisting}
+mkdir folder_name      # Create a new folder
+rm file_name           # Delete a file
+rm -r folder_name      # Delete a folder (be careful!)
+cp file1 file2         # Copy a file
+mv file1 file2         # Move or rename a file
+nano file.txt          # Open text editor to edit file
+cat file.txt           # View file contents
+\end{lstlisting}
+
+\textbf{System Commands:}
+\begin{lstlisting}
+sudo command           # Run as administrator (needs password)
+sudo apt update        # Update list of available packages
+sudo apt upgrade       # Upgrade installed packages
+sudo reboot            # Restart Raspberry Pi
+sudo shutdown now      # Shut down Raspberry Pi
+\end{lstlisting}
+
+\textbf{Getting Help:}
+\begin{lstlisting}
+command --help         # Get help for any command
+man command            # Read the manual page
+\end{lstlisting}
+
+\begin{tipbox}
+\textbf{Remember:}
+\begin{itemize}
+    \item Press \texttt{Tab} to auto-complete file/folder names
+    \item Press \texttt{Up Arrow} to see previous commands
+    \item Press \texttt{Ctrl+C} to stop a running program
+    \item Press \texttt{Ctrl+D} to exit terminal
+\end{itemize}
+\end{tipbox}
+
+\subsection{Step 1.3: Check Your Python Version}
+
+Python is the programming language we'll use. Let's check if it's installed:
+
+\begin{lstlisting}
+python3 --version
+\end{lstlisting}
+
+You should see something like: \texttt{Python 3.9.2} or \texttt{Python 3.11.5}
+
+\begin{warningbox}
+\textbf{Important:} MediaPipe works best with Python 3.9, 3.10, or 3.11. If you have Python 3.12 or higher, you might have problems. If you see a version that's too new, we'll fix it later!
+\end{warningbox}
+
+\section{Step 2: Update Your Raspberry Pi}
+
+\subsection{What is This Step?}
+
+Think of this like updating your phone's apps. We're making sure everything is the latest version so things work smoothly.
+
+\subsection{Step 2.1: Update the System}
+
+Type these commands one by one (press Enter after each):
+
+\begin{lstlisting}
+sudo apt update
+\end{lstlisting}
+
+This downloads a list of available updates. It might ask for your password (the default is usually \texttt{raspberry}).
+
+\begin{lstlisting}
+sudo apt upgrade -y
+\end{lstlisting}
+
+This actually installs the updates. The \texttt{-y} means "yes, do it automatically."
+
+\begin{tipbox}
+This might take 10-30 minutes. It's like downloading and installing many app updates at once. Be patient! You can see progress bars moving.
+\end{tipbox}
+
+\section{Step 3: Install System Dependencies}
+
+\subsection{What is This Step?}
+
+Dependencies are like tools and helpers that our program needs to work. It's like needing a hammer and nails to build something - you can't build without the right tools!
+
+\subsection{Step 3.1: Install Basic Tools}
+
+Type this command:
+
+\begin{lstlisting}
+sudo apt install -y build-essential cmake python3-pip python3-venv
+\end{lstlisting}
+
+\begin{infobox}
+\textbf{What we're installing:}
+\begin{itemize}
+    \item \texttt{build-essential} = tools to build/compile software
+    \item \texttt{cmake} = a tool that helps build software
+    \item \texttt{python3-pip} = a tool to install Python packages
+    \item \texttt{python3-venv} = tool to create isolated Python environments
+\end{itemize}
+\end{infobox}
+
+\subsection{Step 3.2: Install OpenCV Dependencies}
+
+OpenCV is like special glasses that help the computer "see" images from the camera.
+
+\begin{lstlisting}
+sudo apt install -y libopencv-dev python3-opencv libatlas-base-dev
+\end{lstlisting}
+
+\subsection{Step 3.3: Install Additional Libraries}
+
+These are extra helpers for handling images and videos:
+
+\begin{lstlisting}
+sudo apt install -y libjpeg-dev libtiff5-dev libjasper-dev libpng12-dev
+sudo apt install -y libavcodec-dev libavformat-dev libswscale-dev libv4l-dev
+sudo apt install -y libxvidcore-dev libx264-dev
+\end{lstlisting}
+
+\begin{tipbox}
+You can copy and paste these commands. Just make sure to press Enter after each one!
+\end{tipbox}
+
+\section{Step 4: Create a Virtual Environment}
+
+\subsection{What is This Step?}
+
+A virtual environment is like a separate room where we keep all our project's tools. This way, they don't mix with other projects' tools!
+
+\subsection{Step 4.1: Create a Project Folder}
+
+First, let's make a special folder for our project:
+
+\begin{lstlisting}
+mkdir ~/gesture_recognition
+cd ~/gesture_recognition
+\end{lstlisting}
+
+\begin{infobox}
+\textbf{What we did:}
+\begin{itemize}
+    \item \texttt{mkdir} = "make directory" (create a folder)
+    \item \texttt{\~} = your home folder (shortcut)
+    \item \texttt{cd} = "change directory" (go into the folder)
+\end{itemize}
+\end{infobox}
+
+\subsection{Step 4.2: Create the Virtual Environment}
+
+Now let's create our special "room":
+
+\begin{lstlisting}
+python3 -m venv venv_mediapipe_pi
+\end{lstlisting}
+
+This creates a folder called \texttt{venv\_mediapipe\_pi} with a clean Python environment inside.
+
+\begin{tipbox}
+This might take a minute. The computer is setting up a fresh Python installation just for this project!
+\end{tipbox}
+
+\subsection{Step 4.3: Activate the Virtual Environment}
+
+Now let's "enter" this special room:
+
+\begin{lstlisting}
+source venv_mediapipe_pi/bin/activate
+\end{lstlisting}
+
+You should see \texttt{(venv\_mediapipe\_pi)} appear at the beginning of your command line. This means you're "inside" the virtual environment!
+
+\begin{warningbox}
+\textbf{Important:} Every time you open a new terminal, you need to run this command again to activate the virtual environment!
+\end{warningbox}
+
+\section{Step 5: Install Python Packages}
+
+\subsection{What is This Step?}
+
+Now we're installing the actual Python tools (called "packages") that our program needs. Think of them as apps for Python!
+
+\subsection{Step 5.1: Upgrade pip}
+
+First, let's make sure our package installer is up to date:
+
+\begin{lstlisting}
+pip install --upgrade pip setuptools wheel
+\end{lstlisting}
+
+\subsection{Step 5.2: Install NumPy}
+
+NumPy helps with math and arrays (like lists of numbers):
+
+\begin{lstlisting}
+pip install numpy
+\end{lstlisting}
+
+\begin{tipbox}
+This might take 2-5 minutes. NumPy is being compiled (built) for your Raspberry Pi!
+\end{tipbox}
+
+\subsection{Step 5.3: Install OpenCV}
+
+OpenCV helps the computer see and process images:
+
+\begin{lstlisting}
+pip install opencv-python-headless
+\end{lstlisting}
+
+We use "headless" version because Raspberry Pi doesn't need the GUI parts (we're running it without a desktop display sometimes).
+
+\subsection{Step 5.4: Install TensorFlow Lite}
+
+TensorFlow Lite is a lightweight version of TensorFlow (a machine learning tool):
+
+\begin{lstlisting}
+pip install tensorflow-lite-runtime
+\end{lstlisting}
+
+\begin{infobox}
+We use the "Lite" version because it's much smaller and faster on Raspberry Pi. The full TensorFlow would be too heavy!
+\end{infobox}
+
+\subsection{Step 5.5: Install MediaPipe}
+
+This is the big one! MediaPipe is what recognizes your hand gestures:
+
+\begin{lstlisting}
+pip install mediapipe
+\end{lstlisting}
+
+\begin{warningbox}
+\textbf{This will take 15-30 minutes!} MediaPipe is a large package and needs to be compiled. Be very patient. You'll see lots of text scrolling - that's normal!
+\end{warningbox}
+
+\begin{tipbox}
+If this fails, try:
+\begin{lstlisting}
+pip install mediapipe==0.10.8
+\end{lstlisting}
+This installs a specific version that's known to work well.
+\end{tipbox}
+
+\subsection{Step 5.6: Verify Installation}
+
+Let's check if everything installed correctly:
+
+\begin{lstlisting}
+python3 -c "import cv2; print('OpenCV:', cv2.__version__)"
+python3 -c "import numpy; print('NumPy:', numpy.__version__)"
+python3 -c "import mediapipe as mp; print('MediaPipe:', mp.__version__)"
+\end{lstlisting}
+
+If you see version numbers, everything is good! If you see errors, we'll fix them in the troubleshooting section.
+
+\section{Step 6: Transfer Your Project Files}
+
+\subsection{What is This Step?}
+
+Now we need to copy your project files from your computer to the Raspberry Pi. It's like moving your homework from one computer to another!
+
+\subsection{Step 6.1: Prepare Files on Your Computer}
+
+On your Windows/Mac computer, make sure you have these folders ready:
+
+\begin{verbatim}
+Your Project/
+├── app.py
+├── model/
+│   ├── __init__.py
+│   ├── keypoint_classifier/
+│   │   ├── keypoint_classifier.tflite
+│   │   ├── keypoint_classifier_label.csv
+│   │   └── keypoint_classifier.py
+│   └── point_history_classifier/
+│       ├── point_history_classifier.tflite
+│       ├── point_history_classifier_label.csv
+│       └── point_history_classifier.py
+└── utils/
+    ├── __init__.py
+    └── cvfpscalc.py
+\end{verbatim}
+
+\begin{warningbox}
+\textbf{Don't copy the venv folders!} They're too big and we'll create a new one on the Pi.
+\end{warningbox}
+
+\subsection{Step 6.2: Method 1 - Using USB Drive}
+
+This is the easiest method:
+
+\begin{enumerate}
+    \item Copy your project folder to a USB drive
+    \item Plug the USB drive into your Raspberry Pi
+    \item On the Pi, open the file manager and find your USB drive
+    \item Copy the project folder to: \texttt{/home/pi/gesture\_recognition/}
+    \item Or use terminal:
+    \begin{lstlisting}
+    cp -r /media/pi/USB_NAME/YourProjectFolder ~/gesture_recognition/
+    \end{lstlisting}
+    (Replace \texttt{USB\_NAME} with your actual USB drive name)
+\end{enumerate}
+
+\subsection{Step 6.3: Method 2 - Using SCP (From Another Computer)}
+
+If you have another computer on the same network:
+
+\begin{enumerate}
+    \item Find your Raspberry Pi's IP address:
+    \begin{lstlisting}
+    hostname -I
+    \end{lstlisting}
+    You'll see something like: \texttt{192.168.1.100}
+    
+    \item On your other computer (Windows/Mac/Linux), open terminal/command prompt and type:
+    \begin{lstlisting}
+    scp -r YourProjectFolder pi@192.168.1.100:/home/pi/gesture_recognition/
+    \end{lstlisting}
+    (Replace \texttt{192.168.1.100} with your Pi's actual IP)
+    
+    \item Enter password when asked (default is \texttt{raspberry})
+\end{enumerate}
+
+\subsection{Step 6.4: Method 3 - Using Git}
+
+If your project is on GitHub:
+
+\begin{lstlisting}
+cd ~/gesture_recognition
+git clone https://github.com/yourusername/yourproject.git
+\end{lstlisting}
+
+\subsection{Step 6.5: Verify Files Are There}
+
+Check that all files are in place:
+
+\begin{lstlisting}
+cd ~/gesture_recognition
+ls -la
+\end{lstlisting}
+
+You should see \texttt{app.py} and the \texttt{model/} and \texttt{utils/} folders.
+
+\section{Step 7: Set Up the Camera}
+
+\subsection{What is This Step?}
+
+The camera is the "eyes" of our system. We need to make sure the computer can see through it!
+
+\subsection{Step 7.1: For USB Webcam}
+
+\begin{enumerate}
+    \item Plug your USB webcam into the Raspberry Pi
+    \item Add yourself to the video group (gives permission to use camera):
+    \begin{lstlisting}
+    sudo usermod -a -G video $USER
+    \end{lstlisting}
+    
+    \item Log out and log back in (or restart) for changes to take effect
+    
+    \item Test the camera:
+    \begin{lstlisting}
+    python3 -c "import cv2; cap = cv2.VideoCapture(0); print('Camera OK!' if cap.isOpened() else 'Camera FAILED'); cap.release()"
+    \end{lstlisting}
+    
+    If you see "Camera OK!", you're good to go!
+\end{enumerate}
+
+\subsection{Step 7.2: For Raspberry Pi Camera Module}
+
+\begin{enumerate}
+    \item Enable the camera:
+    \begin{lstlisting}
+    sudo raspi-config
+    \end{lstlisting}
+    
+    \item Navigate with arrow keys:
+    \begin{itemize}
+        \item Go to: \texttt{Interface Options}
+        \item Select: \texttt{Camera}
+        \item Choose: \texttt{Enable}
+        \item Press \texttt{Finish}
+    \end{itemize}
+    
+    \item Reboot:
+    \begin{lstlisting}
+    sudo reboot
+    \end{lstlisting}
+    
+    \item Test the camera:
+    \begin{lstlisting}
+    raspistill -o test.jpg
+    \end{lstlisting}
+    
+    If a file \texttt{test.jpg} appears, your camera works!
+\end{enumerate}
+
+\begin{tipbox}
+If you have multiple cameras, you might need to use \texttt{--device 1} instead of \texttt{--device 0} in the app.py command.
+\end{tipbox}
+
+\section{Step 8: Optimize app.py for Raspberry Pi}
+
+\subsection{What is This Step?}
+
+Raspberry Pi is smaller and less powerful than a regular computer, so we need to make the program lighter (like using a smaller image size).
+
+\subsection{Step 8.1: Check Current Settings}
+
+Let's look at what resolution app.py uses by default. The default is 960x540, which might be too high for Pi.
+
+\subsection{Step 8.2: Run with Lower Resolution}
+
+Instead of changing the code, we can tell the program to use a smaller resolution when we run it:
+
+\begin{lstlisting}
+python3 app.py --width 640 --height 480
+\end{lstlisting}
+
+Or even smaller for better performance:
+
+\begin{lstlisting}
+python3 app.py --width 320 --height 240
+\end{lstlisting}
+
+\begin{infobox}
+\textbf{Resolution explained:}
+\begin{itemize}
+    \item 960x540 = High quality, slower
+    \item 640x480 = Medium quality, medium speed (recommended)
+    \item 320x240 = Lower quality, faster
+\end{itemize}
+\end{infobox}
+
+\section{Step 9: Run the Program!}
+
+\subsection{What is This Step?}
+
+Finally! Time to see your hand gesture recognition in action!
+
+\subsection{Step 9.1: Make Sure You're in the Right Place}
+
+\begin{lstlisting}
+cd ~/gesture_recognition
+source venv_mediapipe_pi/bin/activate
+\end{lstlisting}
+
+You should see \texttt{(venv\_mediapipe\_pi)} in your terminal.
+
+\subsection{Step 9.2: Run app.py}
+
+\begin{lstlisting}
+python3 app.py --width 640 --height 480 --device 0
+\end{lstlisting}
+
+\begin{infobox}
+\textbf{What the command means:}
+\begin{itemize}
+    \item \texttt{python3 app.py} = Run the app.py program
+    \item \texttt{--width 640} = Use 640 pixels wide
+    \item \texttt{--height 480} = Use 480 pixels tall
+    \item \texttt{--device 0} = Use camera number 0 (first camera)
+\end{itemize}
+\end{infobox}
+
+\subsection{Step 9.3: What You Should See}
+
+A window should open showing:
+\begin{itemize}
+    \item Your camera feed
+    \item Your hand with lines drawn on it (showing MediaPipe detecting your hand)
+    \item Text showing what gesture it recognizes
+    \item FPS (frames per second) counter
+\end{itemize}
+
+\subsection{Step 9.4: Controls}
+
+\begin{itemize}
+    \item \textbf{ESC} = Exit the program
+    \item \textbf{0-9} = Select gesture number (for training mode)
+    \item \textbf{N} = Normal mode
+    \item \textbf{K} = Logging Key Point mode
+    \item \textbf{H} = Logging Point History mode
+\end{itemize}
+
+\section{Step 10: Create a Startup Script}
+
+\subsection{What is This Step?}
+
+Instead of typing all those commands every time, we'll create a shortcut script!
+
+\subsection{Step 10.1: Create the Script}
+
+Create a new file:
+
+\begin{lstlisting}
+nano run_app.sh
+\end{lstlisting}
+
+This opens a text editor. Type these lines:
+
+\begin{lstlisting}
+#!/bin/bash
+cd ~/gesture_recognition
+source venv_mediapipe_pi/bin/activate
+python3 app.py --width 640 --height 480 --device 0
+\end{lstlisting}
+
+Press \texttt{Ctrl+X}, then \texttt{Y}, then \texttt{Enter} to save.
+
+\subsection{Step 10.2: Make It Executable}
+
+\begin{lstlisting}
+chmod +x run_app.sh
+\end{lstlisting}
+
+\subsection{Step 10.3: Run the Script}
+
+Now you can simply type:
+
+\begin{lstlisting}
+./run_app.sh
+\end{lstlisting}
+
+Much easier!
+
+\section{Step 11: Daily Operations Guide}
+
+\subsection{What is This Step?}
+
+Now that everything is set up, here's how to use your Raspberry Pi every day to run the gesture recognition project.
+
+\subsection{Step 11.1: Starting the Project (Every Time)}
+
+Every time you want to run the project, follow these steps:
+
+\textbf{Step 1: Open Terminal}
+\begin{itemize}
+    \item Desktop Mode: Click Terminal icon or press \texttt{Ctrl + Alt + T}
+    \item SSH: Connect via SSH from your computer
+\end{itemize}
+
+\textbf{Step 2: Navigate to Project Folder}
+\begin{lstlisting}
+cd ~/gesture_recognition
+\end{lstlisting}
+
+\textbf{Step 3: Activate Virtual Environment}
+\begin{lstlisting}
+source venv_mediapipe_pi/bin/activate
+\end{lstlisting}
+
+You should see \texttt{(venv\_mediapipe\_pi)} appear in your prompt.
+
+\textbf{Step 4: Run the App}
+\begin{lstlisting}
+python3 app.py --width 640 --height 480 --device 0
+\end{lstlisting}
+
+\begin{warningbox}
+\textbf{Important:} You must activate the virtual environment every time you open a new terminal! If you don't see \texttt{(venv\_mediapipe\_pi)} in your prompt, the program won't work.
+\end{warningbox}
+
+\subsection{Step 11.2: Using the Quick Start Script}
+
+Instead of typing all those commands, you can use the script we created:
+
+\begin{lstlisting}
+~/run_gesture.sh
+\end{lstlisting}
+
+Or if you saved it in the project folder:
+\begin{lstlisting}
+cd ~/gesture_recognition
+./run_app.sh
+\end{lstlisting}
+
+\subsection{Step 11.3: Checking if Everything is Working}
+
+Before running the app, you can check if everything is set up correctly:
+
+\textbf{Check Python Version:}
+\begin{lstlisting}
+python3 --version
+\end{lstlisting}
+Should show Python 3.9, 3.10, or 3.11
+
+\textbf{Check Installed Packages:}
+\begin{lstlisting}
+source venv_mediapipe_pi/bin/activate
+pip list
+\end{lstlisting}
+You should see: numpy, opencv-python-headless, tensorflow-lite-runtime, mediapipe
+
+\textbf{Check Camera:}
+\begin{lstlisting}
+python3 -c "import cv2; cap = cv2.VideoCapture(0); print('Camera OK!' if cap.isOpened() else 'Camera FAILED'); cap.release()"
+\end{lstlisting}
+
+\textbf{Check Project Files:}
+\begin{lstlisting}
+cd ~/gesture_recognition
+ls -la                    # Check main files
+ls -la model/             # Check model folder
+ls -la utils/             # Check utils folder
+\end{lstlisting}
+
+\subsection{Step 11.4: Stopping the Program}
+
+To stop the running program:
+\begin{itemize}
+    \item Press \texttt{ESC} in the camera window, OR
+    \item Press \texttt{Ctrl+C} in the terminal
+\end{itemize}
+
+\subsection{Step 11.5: Restarting Your Raspberry Pi}
+
+Sometimes you need to restart your Pi:
+
+\textbf{From Terminal:}
+\begin{lstlisting}
+sudo reboot
+\end{lstlisting}
+
+\textbf{From Desktop:}
+Menu → Shutdown → Reboot
+
+\subsection{Step 11.6: Shutting Down Your Raspberry Pi}
+
+\textbf{From Terminal:}
+\begin{lstlisting}
+sudo shutdown now
+\end{lstlisting}
+
+\textbf{From Desktop:}
+Menu → Shutdown → Shutdown
+
+\begin{warningbox}
+\textbf{Important:} Always shut down properly! Don't just unplug the power. This can damage your SD card.
+\end{warningbox}
+
+\subsection{Step 11.7: Common Daily Operations}
+
+\textbf{Viewing Files:}
+\begin{lstlisting}
+cat app.py              # View file contents
+less app.py             # View with scroll (press 'q' to quit)
+nano app.py             # Edit file in text editor
+\end{lstlisting}
+
+\textbf{Finding Your IP Address:}
+\begin{lstlisting}
+hostname -I
+\end{lstlisting}
+
+\textbf{Checking Disk Space:}
+\begin{lstlisting}
+df -h
+\end{lstlisting}
+Shows how much space is used/available
+
+\textbf{Checking Memory Usage:}
+\begin{lstlisting}
+free -h
+\end{lstlisting}
+Shows RAM usage
+
+\textbf{Checking Running Processes:}
+\begin{lstlisting}
+ps aux
+\end{lstlisting}
+Shows all running programs
+
+\textbf{Killing a Stuck Program:}
+\begin{lstlisting}
+# First, find the process
+ps aux | grep python
+
+# Then kill it (replace PID with the number you see)
+kill PID
+\end{lstlisting}
+
+\textbf{Checking Pi Temperature:}
+\begin{lstlisting}
+vcgencmd measure_temp
+\end{lstlisting}
+Good temperature is below 70°C
+
+\section{Step 12: Auto-Start on Boot (Optional)}
+
+\subsection{What is This Step?}
+
+If you want the gesture recognition app to start automatically when your Raspberry Pi boots up, you can set up a systemd service. This is like setting an app to start when your computer turns on.
+
+\subsection{Step 12.1: Create Systemd Service File}
+
+Create a service file:
+\begin{lstlisting}
+sudo nano /etc/systemd/system/gesture-app.service
+\end{lstlisting}
+
+Type this content (copy exactly):
+\begin{lstlisting}
+[Unit]
+Description=Hand Gesture Recognition App
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/gesture_recognition
+Environment="PATH=/home/pi/gesture_recognition/venv_mediapipe_pi/bin"
+ExecStart=/home/pi/gesture_recognition/venv_mediapipe_pi/bin/python3 app.py --width 640 --height 480 --device 0
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+\end{lstlisting}
+
+Save: Press \texttt{Ctrl+X}, then \texttt{Y}, then \texttt{Enter}
+
+\subsection{Step 12.2: Enable and Start the Service}
+
+\begin{lstlisting}
+# Reload systemd to recognize the new service
+sudo systemctl daemon-reload
+
+# Enable the service (starts on boot)
+sudo systemctl enable gesture-app
+
+# Start the service now
+sudo systemctl start gesture-app
+\end{lstlisting}
+
+\subsection{Step 12.3: Check Service Status}
+
+\begin{lstlisting}
+sudo systemctl status gesture-app
+\end{lstlisting}
+
+You should see "active (running)" in green.
+
+\subsection{Step 12.4: Managing the Auto-Start Service}
+
+\textbf{Stop the service:}
+\begin{lstlisting}
+sudo systemctl stop gesture-app
+\end{lstlisting}
+
+\textbf{Start the service:}
+\begin{lstlisting}
+sudo systemctl start gesture-app
+\end{lstlisting}
+
+\textbf{Restart the service:}
+\begin{lstlisting}
+sudo systemctl restart gesture-app
+\end{lstlisting}
+
+\textbf{Disable auto-start (but keep service):}
+\begin{lstlisting}
+sudo systemctl disable gesture-app
+\end{lstlisting}
+
+\textbf{View service logs:}
+\begin{lstlisting}
+sudo journalctl -u gesture-app -f
+\end{lstlisting}
+Press \texttt{Ctrl+C} to exit
+
+\begin{tipbox}
+If you enable auto-start, the app will run every time the Pi boots. Make sure your camera is connected before turning on the Pi!
+\end{tipbox}
+
+\section{Troubleshooting}
+
+\subsection{Problem 1: MediaPipe Won't Install}
+
+\textbf{Symptoms:} You see errors when trying to install MediaPipe.
+
+\textbf{Solutions:}
+
+\begin{enumerate}
+    \item Try a specific version:
+    \begin{lstlisting}
+    pip install mediapipe==0.10.8
+    \end{lstlisting}
+    
+    \item Make sure you have enough space:
+    \begin{lstlisting}
+    df -h
+    \end{lstlisting}
+    You need at least 2GB free.
+    
+    \item Increase swap space (temporary storage):
+    \begin{lstlisting}
+    sudo dphys-swapfile swapoff
+    sudo nano /etc/dphys-swapfile
+    \end{lstlisting}
+    Change \texttt{CONF\_SWAPSIZE=100} to \texttt{CONF\_SWAPSIZE=2048}
+    Then:
+    \begin{lstlisting}
+    sudo dphys-swapfile setup
+    sudo dphys-swapfile swapon
+    \end{lstlisting}
+\end{enumerate}
+
+\subsection{Problem 2: Camera Not Detected}
+
+\textbf{Symptoms:} Program says it can't find the camera.
+
+\textbf{Solutions:}
+
+\begin{enumerate}
+    \item Check if camera is detected:
+    \begin{lstlisting}
+    ls -l /dev/video*
+    \end{lstlisting}
+    
+    \item Try a different camera number:
+    \begin{lstlisting}
+    python3 app.py --device 1
+    \end{lstlisting}
+    
+    \item For USB camera, make sure you're in the video group:
+    \begin{lstlisting}
+    groups
+    \end{lstlisting}
+    You should see "video" in the list.
+\end{enumerate}
+
+\subsection{Problem 3: Program Runs Too Slowly}
+
+\textbf{Symptoms:} Low FPS, laggy video.
+
+\textbf{Solutions:}
+
+\begin{enumerate}
+    \item Use lower resolution:
+    \begin{lstlisting}
+    python3 app.py --width 320 --height 240
+    \end{lstlisting}
+    
+    \item Lower detection confidence (faster but less accurate):
+    \begin{lstlisting}
+    python3 app.py --width 640 --height 480 --min_detection_confidence 0.5
+    \end{lstlisting}
+    
+    \item Close other programs to free up memory
+    
+    \item Make sure nothing is blocking the camera's view
+\end{enumerate}
+
+\subsection{Problem 4: "Module Not Found" Error}
+
+\textbf{Symptoms:} Python says it can't find a module (like cv2, mediapipe, etc.).
+
+\textbf{Solutions:}
+
+\begin{enumerate}
+    \item Make sure virtual environment is activated:
+    \begin{lstlisting}
+    source venv_mediapipe_pi/bin/activate
+    \end{lstlisting}
+    You should see \texttt{(venv\_mediapipe\_pi)}.
+    
+    \item Reinstall the missing package:
+    \begin{lstlisting}
+    pip install package_name
+    \end{lstlisting}
+    (Replace \texttt{package\_name} with the missing module)
+\end{enumerate}
+
+\subsection{Problem 5: "Model File Not Found" Error}
+
+\textbf{Symptoms:} Program says it can't find model files.
+
+\textbf{Solutions:}
+
+\begin{enumerate}
+    \item Check you're in the right directory:
+    \begin{lstlisting}
+    pwd
+    \end{lstlisting}
+    Should show: \texttt{/home/pi/gesture\_recognition}
+    
+    \item Check model files exist:
+    \begin{lstlisting}
+    ls -la model/keypoint_classifier/
+    ls -la model/point_history_classifier/
+    \end{lstlisting}
+    
+    \item Make sure all files were transferred correctly
+\end{enumerate}
+
+\subsection{Problem 6: "Command Not Found" Error}
+
+\textbf{Symptoms:} Terminal says a command doesn't exist.
+
+\textbf{Solutions:}
+
+\begin{enumerate}
+    \item Check spelling - Linux is case-sensitive!
+    \item Make sure you're in the right directory
+    \item Check if the command is installed:
+    \begin{lstlisting}
+    which command_name
+    \end{lstlisting}
+    \item For Python commands, make sure virtual environment is activated
+\end{enumerate}
+
+\subsection{Problem 7: "Permission Denied" Error}
+
+\textbf{Symptoms:} Terminal says you don't have permission to do something.
+
+\textbf{Solutions:}
+
+\begin{enumerate}
+    \item Use \texttt{sudo} before the command:
+    \begin{lstlisting}
+    sudo command_name
+    \end{lstlisting}
+    \item Check file permissions:
+    \begin{lstlisting}
+    ls -la filename
+    \end{lstlisting}
+    \item Change file permissions if needed:
+    \begin{lstlisting}
+    chmod +x filename    # Make file executable
+    \end{lstlisting}
+\end{enumerate}
+
+\subsection{Problem 8: Virtual Environment Not Activating}
+
+\textbf{Symptoms:} \texttt{source venv\_mediapipe\_pi/bin/activate} doesn't work.
+
+\textbf{Solutions:}
+
+\begin{enumerate}
+    \item Make sure you're in the right directory:
+    \begin{lstlisting}
+    cd ~/gesture_recognition
+    \end{lstlisting}
+    \item Check if virtual environment exists:
+    \begin{lstlisting}
+    ls -la venv_mediapipe_pi/
+    \end{lstlisting}
+    \item If it doesn't exist, recreate it:
+    \begin{lstlisting}
+    python3 -m venv venv_mediapipe_pi
+    \end{lstlisting}
+    \item Make sure you're using the full path:
+    \begin{lstlisting}
+    source ~/gesture_recognition/venv_mediapipe_pi/bin/activate
+    \end{lstlisting}
+\end{enumerate}
+
+\subsection{Problem 9: Out of Memory}
+
+\textbf{Symptoms:} Program crashes, system becomes slow, "out of memory" errors.
+
+\textbf{Solutions:}
+
+\begin{enumerate}
+    \item Check memory usage:
+    \begin{lstlisting}
+    free -h
+    \end{lstlisting}
+    \item Close other programs
+    \item Increase swap space:
+    \begin{lstlisting}
+    sudo dphys-swapfile swapoff
+    sudo nano /etc/dphys-swapfile
+    \end{lstlisting}
+    Change \texttt{CONF\_SWAPSIZE=100} to \texttt{CONF\_SWAPSIZE=2048}
+    \begin{lstlisting}
+    sudo dphys-swapfile setup
+    sudo dphys-swapfile swapon
+    \end{lstlisting}
+    \item Use lower resolution in app.py
+\end{enumerate}
+
+\subsection{Problem 10: Pi Overheating}
+
+\textbf{Symptoms:} Pi becomes slow, temperature warning, system shuts down.
+
+\textbf{Solutions:}
+
+\begin{enumerate}
+    \item Check temperature:
+    \begin{lstlisting}
+    vcgencmd measure_temp
+    \end{lstlisting}
+    \item Add a cooling fan or heatsink
+    \item Reduce CPU usage (lower resolution, close other programs)
+    \item Make sure Pi has good ventilation
+    \item Check if Pi is overclocked (reduce if needed)
+\end{enumerate}
+
+\subsection{Problem 11: Can't See Camera Window (SSH)}
+
+\textbf{Symptoms:} Running via SSH, program starts but no window appears.
+
+\textbf{Solutions:}
+
+\begin{enumerate}
+    \item This is normal! SSH doesn't show GUI windows
+    \item Use X11 forwarding (advanced):
+    \begin{lstlisting}
+    ssh -X pi@192.168.1.100
+    \end{lstlisting}
+    \item Or use VNC to see the desktop remotely
+    \item Or connect a monitor directly to the Pi
+\end{enumerate}
+
+\subsection{Problem 12: Files Not Transferring Correctly}
+
+\textbf{Symptoms:} Files missing, wrong file sizes, errors when running.
+
+\textbf{Solutions:}
+
+\begin{enumerate}
+    \item Check file sizes match:
+    \begin{lstlisting}
+    ls -lh filename
+    \end{lstlisting}
+    \item Verify all required files are present:
+    \begin{lstlisting}
+    find ~/gesture_recognition -name "*.tflite"
+    find ~/gesture_recognition -name "*.csv"
+    \end{lstlisting}
+    \item Re-transfer files if needed
+    \item Check file permissions:
+    \begin{lstlisting}
+    chmod 644 filename    # Make readable
+    \end{lstlisting}
+\end{enumerate}
+
+\section{Quick Reference Commands}
+
+Here's a comprehensive cheat sheet of all the important commands you'll need:
+
+\subsection{Project Navigation}
+
+\begin{lstlisting}
+# Go to project folder
+cd ~/gesture_recognition
+
+# Go to home folder
+cd ~
+
+# See where you are
+pwd
+
+# List files
+ls
+ls -la              # Show all files including hidden
+\end{lstlisting}
+
+\subsection{Virtual Environment}
+
+\begin{lstlisting}
+# Activate virtual environment
+source venv_mediapipe_pi/bin/activate
+
+# Deactivate virtual environment
+deactivate
+
+# Check if activated (should see (venv_mediapipe_pi) in prompt)
+# If not visible, activate it!
+\end{lstlisting}
+
+\subsection{Running the App}
+
+\begin{lstlisting}
+# Standard run (medium quality, recommended)
+python3 app.py --width 640 --height 480 --device 0
+
+# Low quality, faster
+python3 app.py --width 320 --height 240 --device 0
+
+# High quality, slower
+python3 app.py --width 960 --height 540 --device 0
+
+# Using quick start script
+~/run_gesture.sh
+# or
+./run_app.sh
+\end{lstlisting}
+
+\subsection{System Checks}
+
+\begin{lstlisting}
+# Check Python version
+python3 --version
+
+# Check camera
+python3 -c "import cv2; cap = cv2.VideoCapture(0); print('OK' if cap.isOpened() else 'FAIL'); cap.release()"
+
+# Check installed packages
+pip list
+
+# Check Pi temperature
+vcgencmd measure_temp
+
+# Check disk space
+df -h
+
+# Check memory
+free -h
+
+# Check IP address
+hostname -I
+\end{lstlisting}
+
+\subsection{File Operations}
+
+\begin{lstlisting}
+# View file
+cat filename
+less filename          # Scrollable view (press 'q' to quit)
+
+# Edit file
+nano filename          # Text editor (Ctrl+X to save and exit)
+
+# Copy file
+cp source destination
+
+# Move/rename file
+mv oldname newname
+
+# Delete file (be careful!)
+rm filename
+rm -r foldername       # Delete folder
+
+# Make file executable
+chmod +x filename
+\end{lstlisting}
+
+\subsection{System Management}
+
+\begin{lstlisting}
+# Update system
+sudo apt update
+sudo apt upgrade -y
+
+# Restart Pi
+sudo reboot
+
+# Shut down Pi
+sudo shutdown now
+
+# Check running processes
+ps aux
+
+# Kill a process
+kill PID               # Replace PID with process number
+\end{lstlisting}
+
+\subsection{Service Management (Auto-Start)}
+
+\begin{lstlisting}
+# Check service status
+sudo systemctl status gesture-app
+
+# Start service
+sudo systemctl start gesture-app
+
+# Stop service
+sudo systemctl stop gesture-app
+
+# Restart service
+sudo systemctl restart gesture-app
+
+# Enable auto-start
+sudo systemctl enable gesture-app
+
+# Disable auto-start
+sudo systemctl disable gesture-app
+
+# View service logs
+sudo journalctl -u gesture-app -f
+\end{lstlisting}
+
+\subsection{Emergency Commands}
+
+\begin{lstlisting}
+# Stop running program
+Ctrl+C                 # In terminal
+
+# Exit program window
+ESC                    # In camera window
+
+# Force quit terminal
+Ctrl+D
+
+# Clear terminal screen
+clear
+\end{lstlisting}
+
+\section{Daily Workflow Summary}
+
+\subsection{Your Daily Routine}
+
+Here's the simple workflow you'll follow every time you want to use the gesture recognition:
+
+\textbf{Starting Up:}
+\begin{enumerate}
+    \item Turn on Raspberry Pi (or connect via SSH)
+    \item Open Terminal
+    \item Run these commands:
+    \begin{lstlisting}
+    cd ~/gesture_recognition
+    source venv_mediapipe_pi/bin/activate
+    python3 app.py --width 640 --height 480 --device 0
+    \end{lstlisting}
+    \item Or use the quick script:
+    \begin{lstlisting}
+    ~/run_gesture.sh
+    \end{lstlisting}
+\end{enumerate}
+
+\textbf{Using the App:}
+\begin{itemize}
+    \item Position your hand in front of the camera
+    \item Make gestures (open hand, closed fist, pointing, etc.)
+    \item Watch the recognition on screen
+    \item Press \texttt{ESC} to exit when done
+\end{itemize}
+
+\textbf{Shutting Down:}
+\begin{enumerate}
+    \item Exit the app (press \texttt{ESC})
+    \item Optionally shut down the Pi:
+    \begin{lstlisting}
+    sudo shutdown now
+    \end{lstlisting}
+\end{enumerate}
+
+\begin{tipbox}
+\textbf{Pro Tip:} If you set up auto-start (Step 12), the app will start automatically when the Pi boots. Just turn on the Pi and wait for the camera window to appear!
+\end{tipbox}
+
+\section{Performance Tips}
+
+\subsection{For Better Speed}
+
+\begin{itemize}
+    \item Use 320x240 resolution instead of 640x480
+    \item Close other programs
+    \item Use a USB 3.0 webcam if available
+    \item Make sure Raspberry Pi has good cooling (add a fan if needed)
+\end{itemize}
+
+\subsection{For Better Accuracy}
+
+\begin{itemize}
+    \item Use 640x480 or higher resolution
+    \item Ensure good lighting
+    \item Keep hand clearly visible
+    \item Use \texttt{--min\_detection\_confidence 0.7} (default)
+\end{itemize}
+
+\section{What's Next?}
+
+Now that you have it working, you can:
+
+\begin{itemize}
+    \item Experiment with different gestures
+    \item Modify the code to add new features
+    \item Connect it to control other devices (like in test.py)
+    \item Train your own gesture models
+\end{itemize}
+
+\section{Summary}
+
+Congratulations! You've successfully set up hand gesture recognition on Raspberry Pi! Here's everything we covered:
+
+\subsection{Setup Steps Completed}
+
+\begin{enumerate}
+    \item Learned two ways to use Raspberry Pi (Desktop and SSH)
+    \item Learned essential Linux commands
+    \item Set up Raspberry Pi for first time
+    \item Updated system and installed dependencies
+    \item Created virtual environment
+    \item Installed Python packages (NumPy, OpenCV, TensorFlow Lite, MediaPipe)
+    \item Transferred project files
+    \item Set up the camera (USB or Pi Camera Module)
+    \item Optimized app.py for Raspberry Pi
+    \item Ran the program successfully
+    \item Created startup scripts for easy access
+    \item Learned daily operations and maintenance
+    \item Set up auto-start (optional)
+    \item Learned troubleshooting techniques
+\end{enumerate}
+
+\subsection{Key Things to Remember}
+
+\begin{tipbox}
+\textbf{Every time you open a new terminal, you need to:}
+\begin{enumerate}
+    \item \texttt{cd ~/gesture\_recognition}
+    \item \texttt{source venv\_mediapipe\_pi/bin/activate}
+    \item Then run your program!
+\end{enumerate}
+\end{tipbox}
+
+\begin{warningbox}
+\textbf{Important Reminders:}
+\begin{itemize}
+    \item Always activate the virtual environment before running the app
+    \item Check that camera is connected before starting
+    \item Use proper shutdown (\texttt{sudo shutdown now}) - don't just unplug!
+    \item Keep your Pi cool - add a fan if it gets too hot
+    \item Check disk space regularly (\texttt{df -h})
+\end{itemize}
+\end{warningbox}
+
+\subsection{Quick Start Checklist}
+
+Before running the app, verify:
+\begin{itemize}
+    \item[$\square$] Virtual environment is activated (see \texttt{(venv\_mediapipe\_pi)} in prompt)
+    \item[$\square$] You're in the project folder (\texttt{cd ~/gesture\_recognition})
+    \item[$\square$] Camera is connected and working
+    \item[$\square$] All project files are present (\texttt{app.py}, \texttt{model/}, \texttt{utils/})
+    \item[$\square$] Python packages are installed (\texttt{pip list})
+\end{itemize}
+
+\subsection{Next Steps}
+
+Now that everything is working, you can:
+\begin{itemize}
+    \item Experiment with different gestures
+    \item Modify the code to add new features
+    \item Connect hardware control (like in \texttt{test.py})
+    \item Train your own gesture models
+    \item Set up the app to run automatically on boot
+    \item Share your project with others
+\end{itemize}
+
+\section{Appendix: Complete Setup Script}
+
+If you want to automate everything, here's a complete setup script. Save it as \texttt{setup.sh}:
+
+\begin{lstlisting}
+#!/bin/bash
+echo "Setting up MediaPipe on Raspberry Pi..."
+
+# Update system
+sudo apt update && sudo apt upgrade -y
+
+# Install dependencies
+sudo apt install -y build-essential cmake python3-pip python3-venv
+sudo apt install -y libopencv-dev python3-opencv libatlas-base-dev
+sudo apt install -y libjpeg-dev libtiff5-dev libjasper-dev libpng12-dev
+sudo apt install -y libavcodec-dev libavformat-dev libswscale-dev libv4l-dev
+
+# Create project folder
+mkdir -p ~/gesture_recognition
+cd ~/gesture_recognition
+
+# Create virtual environment
+python3 -m venv venv_mediapipe_pi
+source venv_mediapipe_pi/bin/activate
+
+# Install packages
+pip install --upgrade pip setuptools wheel
+pip install numpy
+pip install opencv-python-headless
+pip install tensorflow-lite-runtime
+pip install mediapipe
+
+echo "Setup complete!"
+echo "Don't forget to transfer your project files!"
+echo "Then activate with: source venv_mediapipe_pi/bin/activate"
+\end{lstlisting}
+
+Make it executable and run:
+\begin{lstlisting}
+chmod +x setup.sh
+./setup.sh
+\end{lstlisting}
+
+\end{document}

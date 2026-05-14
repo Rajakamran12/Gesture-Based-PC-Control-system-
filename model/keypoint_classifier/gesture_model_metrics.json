@@ -1,0 +1,46 @@
+{
+  "dataset": "model\\keypoint_classifier\\keypoint.csv",
+  "samples": 4787,
+  "features": 42,
+  "test_size": 0.2,
+  "random_state": 42,
+  "labels": [
+    "forward",
+    "Backward",
+    "Right",
+    "Left"
+  ],
+  "metrics": {
+    "accuracy": 0.9926931106471816,
+    "precision_weighted": 0.9926991544542614,
+    "recall_weighted": 0.9926931106471816,
+    "f1_weighted": 0.9926943521105235
+  },
+  "confusion_matrix": [
+    [
+      302,
+      2,
+      1,
+      0
+    ],
+    [
+      2,
+      313,
+      0,
+      0
+    ],
+    [
+      1,
+      1,
+      269,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      67
+    ]
+  ],
+  "classification_report": "              precision    recall  f1-score   support\n\n     forward       0.99      0.99      0.99       305\n    Backward       0.99      0.99      0.99       315\n       Right       1.00      0.99      0.99       271\n        Left       1.00      1.00      1.00        67\n\n    accuracy                           0.99       958\n   macro avg       0.99      0.99      0.99       958\nweighted avg       0.99      0.99      0.99       958\n"
+}

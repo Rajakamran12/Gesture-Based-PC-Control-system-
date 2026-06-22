@@ -2,8 +2,8 @@ import "./globals.css";
 import { AuthProvider } from "./auth-context";
 
 export const metadata = {
-  title: "DriveFlow",
-  description: "Web-based gesture dashboard ready for Vercel deployment",
+  title: "AI-Driven Gesture Based PC Control System",
+  description: "AI-Driven Gesture Based PC Control System",
 };
 
 export default function RootLayout({ children }) {

@@ -31,7 +31,7 @@ export default function LoginPage() {
   return (
     <div className={styles.container}>
       <div className={styles.card}>
-        <h1 className={styles.title}>DriveFlow</h1>
+        <h1 className={styles.title}>AI-Driven Gesture Based PC Control System</h1>
         <p className={styles.subtitle}>Gesture-Based PC Control</p>
 
         <form onSubmit={handleSubmit} className={styles.form}>

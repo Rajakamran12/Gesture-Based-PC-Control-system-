@@ -801,7 +801,7 @@ export default function DashboardPage() {
     <main className="page">
       <aside className="sidebar">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-          <h1>DriveFlow</h1>
+          <h1>AI-Driven Gesture Based PC Control System</h1>
           <button
             onClick={() => {
               logout();

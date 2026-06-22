@@ -591,8 +591,6 @@ export default function DashboardPage() {
     const handsRatio = clamp(handsCount / 2, 0, 1);
     const stabilityRatio = clamp(1 - jitterIndex, 0, 1);
     return [
-      { label: "Confidence", value: `${(rawConfidence * 100).toFixed(0)}%`, ratio: rawConfidence },
-      { label: "Consensus", value: `${(consensusRatio * 100).toFixed(0)}%`, ratio: consensusRatio },
       { label: "FPS", value: fps.toFixed(1), ratio: fpsRatio },
       { label: "Runtime Score", value: `${score}%`, ratio: score / 100 },
       { label: "Hands", value: `${handsCount}/2`, ratio: handsRatio },

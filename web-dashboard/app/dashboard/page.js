@@ -826,9 +826,12 @@ export default function DashboardPage() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
           <h1>AI-Driven Gesture Based PC Control System</h1>
           <button
-            onClick={() => {
-              logout();
-              router.push('/login');
+            onClick={async () => {
+              try {
+                await logout();
+              } catch {
+                // ignore errors, auth context will clear and redirect
+              }
             }}
             style={{
               padding: '6px 12px',

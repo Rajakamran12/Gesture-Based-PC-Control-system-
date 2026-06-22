@@ -1,37 +1,40 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from './auth-context';
+import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
+import { useAuth } from '../auth-context';
 
-export default function HomePage() {
-  const router = useRouter();
-  const { user, loading } = useAuth();
+const DEFAULT_GESTURE = "No hand";
+const MODULE_BUILD = "modules v2-web";
+const SMOOTH_PROFILE = "fast";
+const ACTIVE_MODULES = [
+  "Feature Engineering",
+  "Gesture Classification",
+  "Gesture Smoothing & Optimization",
+];
+const MODULE_DETAILS = {
+  "Feature Engineering": "Normalizes hand landmarks and builds a compact feature vector for robust gesture recognition.",
+  "Gesture Classification": "Runs rule-based + feature-assisted gesture labeling with confidence scoring.",
+  "Gesture Smoothing & Optimization": "Applies temporal consensus and anti-jitter logic before triggering actions.",
+};
+const HAND_CONNECTIONS = [
+  [0, 1], [1, 2], [2, 3], [3, 4],
+  [0, 5], [5, 6], [6, 7], [7, 8],
+  [5, 9], [9, 10], [10, 11], [11, 12],
+  [9, 13], [13, 14], [14, 15], [15, 16],
+  [13, 17], [17, 18], [18, 19], [19, 20],
+  [0, 17],
+];
 
-  useEffect(() => {
-    if (!loading) {
-      if (user) {
-        router.push('/dashboard');
-      } else {
-        router.push('/login');
-      }
-    }
-  }, [user, loading, router]);
-
-  return (
-    <div style={{
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      minHeight: '100vh',
-      background: '#0f0f0f',
-      color: '#f0f0f0',
-      fontFamily: '"Segoe UI", sans-serif'
-    }}>
-      <p>Redirecting...</p>
-    </div>
-  );
-}
+const LANDMARK_NAMES = [
+  "Wrist",
+  "Thumb CMC",
+  "Thumb MCP",
+  "Thumb IP",
+  "Thumb Tip",
+  "Index MCP",
+  "Index PIP",
   "Index DIP",
   "Index Tip",
   "Middle MCP",
@@ -61,11 +64,9 @@ function detectPinchZoom(landmarks, previousPinchDistance = null) {
     return { gesture: null, distance };
   }
   
-  // Pinch closed = zoom in
   if (distance < previousPinchDistance - 0.03) {
     return { gesture: "Zoom In", distance };
   }
-  // Pinch open = zoom out
   if (distance > previousPinchDistance + 0.03) {
     return { gesture: "Zoom Out", distance };
   }
@@ -82,7 +83,6 @@ function detectSwipe(landmarks, previousLandmarks = null) {
   const prevWrist = previousLandmarks[0];
   const xDelta = wrist.x - prevWrist.x;
   
-  // Threshold for swipe detection (adjust as needed)
   if (Math.abs(xDelta) > 0.04) {
     return xDelta < 0 ? "Swipe Left" : "Swipe Right";
   }
@@ -102,13 +102,11 @@ function classifyGesture(landmarks, previousPinchDistance = null, previousLandma
   const little = landmarks[20];
   const thumb = landmarks[4];
 
-  // Check for pinch zoom first
   const pinch = detectPinchZoom(landmarks, previousPinchDistance);
   if (pinch.gesture) {
     return { gesture: pinch.gesture, pinchDistance: pinch.distance };
   }
   
-  // Check for swipe
   const swipe = detectSwipe(landmarks, previousLandmarks);
   if (swipe) {
     return { gesture: swipe, pinchDistance: pinch.distance };
@@ -205,7 +203,6 @@ function classifyWithFeatureEngineering(landmarks, handednessLabel = "", previou
   const gestureResult = classifyGesture(landmarks, previousPinchDistance, previousLandmarks);
   const baseGesture = gestureResult.gesture;
   
-  // For zoom and swipe gestures, use high confidence
   if (baseGesture === "Zoom In" || baseGesture === "Zoom Out" || baseGesture === "Swipe Left" || baseGesture === "Swipe Right") {
     return {
       gesture: baseGesture,
@@ -497,39 +494,40 @@ function drawHandOverlay(ctx, handLandmarks, worldLandmarks, width, height, hand
 
   ctx.fillStyle = "#effef4";
   ctx.font = "12px Segoe UI";
-  ctx.fillText(titleLines[0], boxX + 12, boxY - 28);
-  ctx.fillText(titleLines[1], boxX + 12, boxY - 12);
-  ctx.fillText(titleLines[2], boxX + 12, boxY + 4);
+  let lineY = boxY - boxHeight + 24;
+  titleLines.forEach((line) => {
+    ctx.fillText(line, boxX + 12, lineY);
+    lineY += 18;
+  });
 
   ctx.restore();
 }
 
 function drawLandmarks(ctx, result, width, height) {
   ctx.clearRect(0, 0, width, height);
-  if (!result?.landmarks?.length) return;
 
-  const hands = result.landmarks;
-  const worldHands = result.worldLandmarks ?? [];
-  const handednessList = result.handedness ?? [];
+  if (!result?.landmarks) {
+    return;
+  }
 
-  hands.forEach((handLandmarks, index) => {
-    const handednessItem = handednessList[index]?.[0];
-    const handednessLabel = handednessItem?.categoryName || handednessItem?.displayName || `Hand ${index + 1}`;
-    const handednessScore = handednessItem?.score ?? 0;
-    drawHandOverlay(
-      ctx,
-      handLandmarks,
-      worldHands[index] ?? null,
-      width,
-      height,
-      index,
-      handednessLabel,
-      handednessScore,
-    );
+  const landmarks = result.landmarks;
+  const handedness = result.handedness || [];
+  const worldLandmarks = result.worldLandmarks || [];
+
+  landmarks.forEach((handLandmarks, handIndex) => {
+    const worldLmks = worldLandmarks[handIndex] || null;
+    const handData = handedness[handIndex] || [];
+    const categoryName = handData[0]?.categoryName || "";
+    const score = handData[0]?.score ?? 0;
+
+    drawHandOverlay(ctx, handLandmarks, worldLmks, width, height, handIndex, categoryName, score);
   });
 }
 
-export default function Page() {
+export default function DashboardPage() {
+  const router = useRouter();
+  const { user, loading, logout } = useAuth();
+
   const videoRef = useRef(null);
   const overlayRef = useRef(null);
   const animationRef = useRef(null);
@@ -557,6 +555,28 @@ export default function Page() {
   const [lastAction, setLastAction] = useState("Waiting");
   const [error, setError] = useState("");
   const [activeScreen, setActiveScreen] = useState("overview");
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/login');
+    }
+  }, [user, loading, router]);
+
+  if (loading || !user) {
+    return (
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '100vh',
+        background: '#0f0f0f',
+        color: '#f0f0f0',
+        fontFamily: '"Segoe UI", sans-serif'
+      }}>
+        <p>Loading...</p>
+      </div>
+    );
+  }
 
   const score = useMemo(() => {
     let s = 40;
@@ -607,7 +627,6 @@ export default function Page() {
     return () => {
       stopApp();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function initLandmarker() {
@@ -694,7 +713,6 @@ export default function Page() {
       previousLandmarksRef.current
     );
     
-    // Update refs for next frame
     if (landmarks) {
       previousLandmarksRef.current = landmarks;
       previousPinchDistanceRef.current = classification.pinchDistance;
@@ -776,7 +794,28 @@ export default function Page() {
   return (
     <main className="page">
       <aside className="sidebar">
-        <h1>DriveFlow</h1>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+          <h1>DriveFlow</h1>
+          <button
+            onClick={() => {
+              logout();
+              router.push('/login');
+            }}
+            style={{
+              padding: '6px 12px',
+              background: '#3a3a3a',
+              color: '#f0f0f0',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '0.75rem',
+              fontWeight: '500'
+            }}
+          >
+            Logout
+          </button>
+        </div>
+        <p style={{ margin: '0 0 12px 0', fontSize: '0.875rem', color: '#a0a0a0' }}>Welcome, {user?.name || 'User'}</p>
         <div className="chip">{running ? "APP RUNNING" : "APP STOPPED"}</div>
 
         <div className="sidebar-actions">
@@ -793,8 +832,6 @@ export default function Page() {
           <button className="card side-card side-card-btn" onClick={() => setActiveScreen("overview")}><span>Gesture</span><strong>{gesture}</strong></button>
           <button className="card side-card side-card-btn" onClick={() => setActiveScreen("overview")}><span>Last Action</span><strong>{lastAction}</strong></button>
           <button className="card side-card side-card-btn" onClick={() => setActiveScreen("live")}><span>Live Feed</span><strong>View</strong></button>
-
-          {/* Removed Build, Smoothing Profile, and Active Module cards as requested */}
 
           <article
             className="card side-card control-card"
@@ -891,18 +928,6 @@ export default function Page() {
               <p className="muted">Camera access: <strong>{cameraAllowed ? "Allowed" : "Blocked"}</strong></p>
               <p className="muted">Control access: <strong>{controlsAllowed ? "Allowed" : "Blocked"}</strong></p>
               <p className="muted">You can also toggle both in the sidebar permissions card.</p>
-            </>
-          ) : null}
-
-          {activeScreen === "Feature Engineering" || activeScreen === "Gesture Classification" || activeScreen === "Gesture Smoothing & Optimization" ? (
-            <>
-              <h3>{activeScreen}</h3>
-              <p className="muted">{MODULE_DETAILS[activeScreen]}</p>
-              <div className="module-focus-points">
-                <p className="muted"><strong>Input:</strong> {activeScreen === "Feature Engineering" ? "21 landmark points" : activeScreen === "Gesture Classification" ? "Feature vector + handedness" : "Raw gesture stream"}</p>
-                <p className="muted"><strong>Output:</strong> {activeScreen === "Feature Engineering" ? `Feature dimension ${featureDim}` : activeScreen === "Gesture Classification" ? `${rawGesture} @ ${(rawConfidence * 100).toFixed(0)}%` : `${gesture} with ${(consensusRatio * 100).toFixed(0)}% consensus`}</p>
-                <p className="muted"><strong>Health:</strong> {moduleRows.find((m) => m.name === activeScreen)?.health ?? 0}%</p>
-              </div>
             </>
           ) : null}
 

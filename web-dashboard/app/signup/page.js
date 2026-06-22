@@ -29,7 +29,7 @@ export default function SignupPage() {
         throw new Error('Password must be at least 6 characters');
       }
 
-      register(email, password, name);
+      await register(email, password, name);
       router.push('/dashboard');
     } catch (err) {
       setError(err.message);

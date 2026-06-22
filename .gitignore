@@ -166,6 +166,9 @@ web-dashboard/node_modules/
 web-dashboard/.next/
 web-deshboard/node_modules/
 web-deshboard/.next/
+# Allow web-dashboard/lib (overrides the broad lib/ rule from Python section)
+!web-dashboard/lib/
+!web-dashboard/lib/**
 
 # Root Node.js artifacts
 node_modules/

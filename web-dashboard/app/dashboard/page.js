@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
 import { useAuth } from '../auth-context';
 import ErrorBoundary from './ErrorBoundary';
 
@@ -632,6 +631,11 @@ export default function DashboardPage() {
 
   async function initLandmarker() {
     if (handLandmarkerRef.current) return handLandmarkerRef.current;
+
+    // Dynamically import mediapipe to avoid loading wasm/wasm-resolver during
+    // SSR or hydration time which can cause client errors in certain hosts.
+    const mp = await import('@mediapipe/tasks-vision');
+    const { FilesetResolver, HandLandmarker } = mp;
 
     const vision = await FilesetResolver.forVisionTasks(
       "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"

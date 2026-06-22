@@ -169,3 +169,5 @@ web-deshboard/.next/
 
 # Root Node.js artifacts
 node_modules/
+# Local env for web dashboard (do NOT commit real keys)
+web-dashboard/.env.local

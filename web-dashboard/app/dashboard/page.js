@@ -565,22 +565,6 @@ export default function DashboardPage() {
     }
   }, [user, loading, router]);
 
-  if (loading || !user) {
-    return (
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: '100vh',
-        background: '#0f0f0f',
-        color: '#f0f0f0',
-        fontFamily: '"Segoe UI", sans-serif'
-      }}>
-        <p>Loading...</p>
-      </div>
-    );
-  }
-
   const score = useMemo(() => {
     let s = 40;
     if (running) s += 30;
@@ -629,6 +613,22 @@ export default function DashboardPage() {
       stopApp();
     };
   }, []);
+
+  if (loading || !user) {
+    return (
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '100vh',
+        background: '#0f0f0f',
+        color: '#f0f0f0',
+        fontFamily: '"Segoe UI", sans-serif'
+      }}>
+        <p>Loading...</p>
+      </div>
+    );
+  }
 
   async function initLandmarker() {
     if (handLandmarkerRef.current) return handLandmarkerRef.current;

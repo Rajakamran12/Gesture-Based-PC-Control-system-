@@ -537,6 +537,8 @@ export default function DashboardPage() {
   const smoothingRef = useRef(createSmoothingState());
   const previousLandmarksRef = useRef(null);
   const previousPinchDistanceRef = useRef(null);
+  const prevFingerCountRef = useRef(null);
+  const zoomTimeoutRef = useRef(null);
 
   const [running, setRunning] = useState(false);
   const [permissionOpen, setPermissionOpen] = useState(false);
@@ -553,6 +555,7 @@ export default function DashboardPage() {
   const [handsCount, setHandsCount] = useState(0);
   const [fps, setFps] = useState(0);
   const [lastAction, setLastAction] = useState("Waiting");
+  const [zoomAction, setZoomAction] = useState(null);
   const [error, setError] = useState("");
   const [activeScreen, setActiveScreen] = useState("overview");
 
@@ -719,6 +722,28 @@ export default function DashboardPage() {
     if (landmarks) {
       previousLandmarksRef.current = landmarks;
       previousPinchDistanceRef.current = classification.pinchDistance;
+
+      // Detect slow fist close (Zoom In) and slow fist open (Zoom Out)
+      const fingersUpNow = [landmarks[8], landmarks[12], landmarks[16], landmarks[20]].map((tip, i) => {
+        const pipIndex = [6, 10, 14, 18][i];
+        return tip.y < landmarks[pipIndex].y;
+      });
+      const fingerCountNow = fingersUpNow.filter(Boolean).length;
+      if (prevFingerCountRef.current !== null) {
+        const prevCount = prevFingerCountRef.current;
+        if (prevCount >= 3 && fingerCountNow === 0) {
+          setZoomAction("Zoom In");
+          setLastAction("Zoom In");
+          clearTimeout(zoomTimeoutRef.current);
+          zoomTimeoutRef.current = setTimeout(() => setZoomAction(null), 1500);
+        } else if (prevCount === 0 && fingerCountNow >= 3) {
+          setZoomAction("Zoom Out");
+          setLastAction("Zoom Out");
+          clearTimeout(zoomTimeoutRef.current);
+          zoomTimeoutRef.current = setTimeout(() => setZoomAction(null), 1500);
+        }
+      }
+      prevFingerCountRef.current = fingerCountNow;
     }
     
     const smoothing = smoothGesture(
@@ -947,6 +972,27 @@ export default function DashboardPage() {
           <div className="video-wrap">
             <video ref={videoRef} playsInline muted className="mirror-feed" />
             <canvas ref={overlayRef} />
+            {zoomAction && (
+              <div style={{
+                position: "absolute",
+                top: "50%",
+                left: "50%",
+                transform: "translate(-50%, -50%)",
+                fontSize: "2.2rem",
+                fontWeight: "700",
+                color: zoomAction === "Zoom In" ? "#00ff88" : "#ff9900",
+                textShadow: "0 2px 20px rgba(0,0,0,0.8)",
+                background: "rgba(0,0,0,0.55)",
+                padding: "10px 32px",
+                borderRadius: "14px",
+                pointerEvents: "none",
+                zIndex: 20,
+                letterSpacing: "2px",
+                whiteSpace: "nowrap",
+              }}>
+                {zoomAction === "Zoom In" ? "🔍+ Zoom In" : "🔍− Zoom Out"}
+              </div>
+            )}
           </div>
         </article>
       </section>

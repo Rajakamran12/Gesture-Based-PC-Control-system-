@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
 import { useAuth } from '../auth-context';
+import ErrorBoundary from './ErrorBoundary';
 
 const DEFAULT_GESTURE = "No hand";
 const MODULE_BUILD = "modules v2-web";
@@ -792,6 +793,7 @@ export default function DashboardPage() {
   }
 
   return (
+    <ErrorBoundary>
     <main className="page">
       <aside className="sidebar">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
@@ -984,5 +986,6 @@ export default function DashboardPage() {
         </div>
       ) : null}
     </main>
+    </ErrorBoundary>
   );
 }

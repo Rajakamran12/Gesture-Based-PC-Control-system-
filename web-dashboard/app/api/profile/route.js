@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '../../../lib/supabaseServer';
+import { getSupabaseAdmin } from '../../../lib/supabaseServer';
 
 /**
  * Validates the Bearer token from the Authorization header and returns the user.
  */
 async function getAuthUser(request) {
+  const supabaseAdmin = getSupabaseAdmin();
   const authHeader = request.headers.get('authorization');
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return { user: null, error: 'Missing or invalid Authorization header' };
@@ -27,7 +28,7 @@ export async function GET(request) {
     return NextResponse.json({ error: authError }, { status: 401 });
   }
 
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await getSupabaseAdmin()
     .from('profiles')
     .select('id, email, name, created_at, updated_at')
     .eq('id', user.id)
@@ -60,7 +61,7 @@ export async function POST(request) {
 
   const { name } = body;
 
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await getSupabaseAdmin()
     .from('profiles')
     .upsert(
       {

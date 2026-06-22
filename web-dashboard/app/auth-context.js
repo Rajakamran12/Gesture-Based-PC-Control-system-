@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect } from 'react';
+import { supabase } from '../lib/supabaseClient';
 
 const AuthContext = createContext();
 
@@ -9,62 +10,54 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check localStorage for existing user session
-    const storedUser = localStorage.getItem('gestureDashboardUser');
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch (e) {
-        localStorage.removeItem('gestureDashboardUser');
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setUser({
+          id: session.user.id,
+          email: session.user.email,
+          name: session.user.user_metadata?.name || session.user.email,
+        });
       }
-    }
-    setLoading(false);
+      setLoading(false);
+    });
+
+    // Listen for auth state changes (login, logout, token refresh)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setUser({
+          id: session.user.id,
+          email: session.user.email,
+          name: session.user.user_metadata?.name || session.user.email,
+        });
+      } else {
+        setUser(null);
+      }
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const register = (email, password, name) => {
-    // Get existing users from localStorage
-    const usersJson = localStorage.getItem('gestureDashboardUsers');
-    const users = usersJson ? JSON.parse(usersJson) : [];
-
-    // Check if email already exists
-    if (users.some(u => u.email === email)) {
-      throw new Error('Email already registered');
-    }
-
-    // Create new user
-    const newUser = {
-      id: Date.now().toString(),
+  const register = async (email, password, name) => {
+    const { data, error } = await supabase.auth.signUp({
       email,
-      password, // In production, hash this!
-      name,
-      createdAt: new Date().toISOString()
-    };
-
-    users.push(newUser);
-    localStorage.setItem('gestureDashboardUsers', JSON.stringify(users));
-
-    // Auto login after signup
-    const sessionUser = { id: newUser.id, email, name };
-    localStorage.setItem('gestureDashboardUser', JSON.stringify(sessionUser));
-    setUser(sessionUser);
+      password,
+      options: { data: { name } },
+    });
+    if (error) throw new Error(error.message);
+    // user will be set via onAuthStateChange
+    return data;
   };
 
-  const login = (email, password) => {
-    const usersJson = localStorage.getItem('gestureDashboardUsers');
-    const users = usersJson ? JSON.parse(usersJson) : [];
-
-    const foundUser = users.find(u => u.email === email && u.password === password);
-    if (!foundUser) {
-      throw new Error('Invalid email or password');
-    }
-
-    const sessionUser = { id: foundUser.id, email: foundUser.email, name: foundUser.name };
-    localStorage.setItem('gestureDashboardUser', JSON.stringify(sessionUser));
-    setUser(sessionUser);
+  const login = async (email, password) => {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw new Error(error.message);
+    return data;
   };
 
-  const logout = () => {
-    localStorage.removeItem('gestureDashboardUser');
+  const logout = async () => {
+    await supabase.auth.signOut();
     setUser(null);
   };
 

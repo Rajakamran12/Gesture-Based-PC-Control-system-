@@ -540,6 +540,61 @@ function drawLandmarks(ctx, result, width, height) {
   });
 }
 
+const GESTURE_ICON = {
+  "Zoom In":      "\uD83D\uDD0D+",
+  "Zoom Out":     "\uD83D\uDD0D\u2212",
+  "Fist":         "\u270A",
+  "Open Palm":    "\uD83D\uDD90",
+  "Two Finger":   "\u270C",
+  "Point":        "\u261D",
+  "Point Left":   "\uD83D\uDC48",
+  "Point Right":  "\uD83D\uDC49",
+  "Swipe Left":   "\u2190",
+  "Swipe Right":  "\u2192",
+};
+
+function drawGestureOverlay(ctx, gesture, action, width, height) {
+  if (!gesture || gesture === DEFAULT_GESTURE || gesture === "None" || gesture === "No hand") return;
+
+  const isZoom = gesture === "Zoom In" || gesture === "Zoom Out";
+  const accentColor = isZoom ? "#f6a623" : "#2be5a7";
+  const icon = GESTURE_ICON[gesture] || "\u25CF";
+  const label = `${icon}  ${action || gesture}`;
+
+  const boxW = Math.min(width - 40, 360);
+  const boxH = 64;
+  const boxX = (width - boxW) / 2;
+  const boxY = height - boxH - 18;
+
+  ctx.save();
+
+  // Background box
+  ctx.fillStyle = "rgba(8, 8, 8, 0.82)";
+  drawRoundedRectPath(ctx, boxX, boxY, boxW, boxH, 14);
+  ctx.fill();
+
+  // Accent border
+  ctx.strokeStyle = accentColor;
+  ctx.lineWidth = 2;
+  drawRoundedRectPath(ctx, boxX, boxY, boxW, boxH, 14);
+  ctx.stroke();
+
+  // Left accent bar
+  ctx.fillStyle = accentColor;
+  ctx.beginPath();
+  ctx.roundRect(boxX + 8, boxY + 12, 4, boxH - 24, 2);
+  ctx.fill();
+
+  // Gesture text
+  const fontSize = label.length > 16 ? 22 : 26;
+  ctx.fillStyle = accentColor;
+  ctx.font = `bold ${fontSize}px "Segoe UI", sans-serif`;
+  ctx.textBaseline = "middle";
+  ctx.fillText(label, boxX + 24, boxY + boxH / 2);
+
+  ctx.restore();
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const { user, loading, logout } = useAuth();
@@ -783,6 +838,11 @@ export default function DashboardPage() {
 
     const action = GESTURE_ACTIONS[displayGesture] ?? GESTURE_ACTIONS[nextStableGesture] ?? "Monitoring";
     setLastAction(action);
+
+    // Draw gesture overlay on canvas
+    if (ctx) {
+      drawGestureOverlay(ctx, displayGesture, action, canvas.width, canvas.height);
+    }
 
     animationRef.current = requestAnimationFrame(runLoop);
   }

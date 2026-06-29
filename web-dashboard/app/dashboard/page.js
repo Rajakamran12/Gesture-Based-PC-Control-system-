@@ -16,7 +16,7 @@ const ACTIVE_MODULES = [
 
 const GESTURE_ACTIONS = {
   "Fist": "Zoom In",
-  "Open Palm": "Zoom Out",
+  "Open Palm": "Stop",
   "Two Finger": "Scroll",
   "Point": "Move Cursor",
   "Point Left": "Navigate Back",
@@ -985,7 +985,7 @@ export default function DashboardPage() {
               <div className="metric-grid" style={{ marginTop: "1rem" }}>
                 {[
                   { gesture: "✊ Fist (close hand)", action: "Zoom In", desc: "Close all fingers into a fist" },
-                  { gesture: "🖐 Open Palm (open hand)", action: "Zoom Out", desc: "Spread all fingers open" },
+                  { gesture: "🖐 Open Palm (open hand)", action: "Stop / Zoom Out (from fist)", desc: "Spread all fingers open" },
                   { gesture: "✌ Two Fingers", action: "Scroll", desc: "Index and middle fingers up" },
                   { gesture: "☝ Point", action: "Move Cursor", desc: "Only index finger extended" },
                   { gesture: "👈 Point Left", action: "Navigate Back", desc: "Index finger pointing left of wrist" },

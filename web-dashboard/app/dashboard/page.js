@@ -537,8 +537,6 @@ export default function DashboardPage() {
   const smoothingRef = useRef(createSmoothingState());
   const previousLandmarksRef = useRef(null);
   const previousPinchDistanceRef = useRef(null);
-  const prevFingerCountRef = useRef(null);
-  const zoomTimeoutRef = useRef(null);
 
   const [running, setRunning] = useState(false);
   const [permissionOpen, setPermissionOpen] = useState(false);
@@ -555,7 +553,6 @@ export default function DashboardPage() {
   const [handsCount, setHandsCount] = useState(0);
   const [fps, setFps] = useState(0);
   const [lastAction, setLastAction] = useState("Waiting");
-  const [zoomAction, setZoomAction] = useState(null);
   const [error, setError] = useState("");
   const [activeScreen, setActiveScreen] = useState("overview");
 
@@ -564,6 +561,22 @@ export default function DashboardPage() {
       router.push('/login');
     }
   }, [user, loading, router]);
+
+  if (loading || !user) {
+    return (
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '100vh',
+        background: '#0f0f0f',
+        color: '#f0f0f0',
+        fontFamily: '"Segoe UI", sans-serif'
+      }}>
+        <p>Loading...</p>
+      </div>
+    );
+  }
 
   const score = useMemo(() => {
     let s = 40;
@@ -578,6 +591,8 @@ export default function DashboardPage() {
     const handsRatio = clamp(handsCount / 2, 0, 1);
     const stabilityRatio = clamp(1 - jitterIndex, 0, 1);
     return [
+      { label: "Confidence", value: `${(rawConfidence * 100).toFixed(0)}%`, ratio: rawConfidence },
+      { label: "Consensus", value: `${(consensusRatio * 100).toFixed(0)}%`, ratio: consensusRatio },
       { label: "FPS", value: fps.toFixed(1), ratio: fpsRatio },
       { label: "Runtime Score", value: `${score}%`, ratio: score / 100 },
       { label: "Hands", value: `${handsCount}/2`, ratio: handsRatio },
@@ -613,22 +628,6 @@ export default function DashboardPage() {
       stopApp();
     };
   }, []);
-
-  if (loading || !user) {
-    return (
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: '100vh',
-        background: '#0f0f0f',
-        color: '#f0f0f0',
-        fontFamily: '"Segoe UI", sans-serif'
-      }}>
-        <p>Loading...</p>
-      </div>
-    );
-  }
 
   async function initLandmarker() {
     if (handLandmarkerRef.current) return handLandmarkerRef.current;
@@ -722,28 +721,6 @@ export default function DashboardPage() {
     if (landmarks) {
       previousLandmarksRef.current = landmarks;
       previousPinchDistanceRef.current = classification.pinchDistance;
-
-      // Detect slow fist close (Zoom In) and slow fist open (Zoom Out)
-      const fingersUpNow = [landmarks[8], landmarks[12], landmarks[16], landmarks[20]].map((tip, i) => {
-        const pipIndex = [6, 10, 14, 18][i];
-        return tip.y < landmarks[pipIndex].y;
-      });
-      const fingerCountNow = fingersUpNow.filter(Boolean).length;
-      if (prevFingerCountRef.current !== null) {
-        const prevCount = prevFingerCountRef.current;
-        if (prevCount >= 3 && fingerCountNow === 0) {
-          setZoomAction("Zoom In");
-          setLastAction("Zoom In");
-          clearTimeout(zoomTimeoutRef.current);
-          zoomTimeoutRef.current = setTimeout(() => setZoomAction(null), 1500);
-        } else if (prevCount === 0 && fingerCountNow >= 3) {
-          setZoomAction("Zoom Out");
-          setLastAction("Zoom Out");
-          clearTimeout(zoomTimeoutRef.current);
-          zoomTimeoutRef.current = setTimeout(() => setZoomAction(null), 1500);
-        }
-      }
-      prevFingerCountRef.current = fingerCountNow;
     }
     
     const smoothing = smoothGesture(
@@ -824,14 +801,11 @@ export default function DashboardPage() {
     <main className="page">
       <aside className="sidebar">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-          <h1>AI-Driven Gesture Based PC Control System</h1>
+          <h1>DriveFlow</h1>
           <button
-            onClick={async () => {
-              try {
-                await logout();
-              } catch {
-                // ignore errors, auth context will clear and redirect
-              }
+            onClick={() => {
+              logout();
+              router.push('/login');
             }}
             style={{
               padding: '6px 12px',
@@ -909,7 +883,30 @@ export default function DashboardPage() {
 
       <section className="content">
         <article className="card screen-panel">
-          {activeScreen === "overview" ? null : null}
+          {activeScreen === "overview" ? (
+            <>
+              <h3>Project Overview</h3>
+              <p className="muted">
+                An AI-driven, real-time gesture-based PC control system that uses a webcam and hand-landmark detection to translate hand gestures into system actions — no mouse or keyboard required.
+              </p>
+              <div className="module-diagnostics-grid" style={{ marginTop: "1.2rem" }}>
+                {[
+                  "Module 1: Dashboard and Frontend",
+                  "Module 2: Gesture Recognition",
+                  "Module 3: Hand Detection and Tracking",
+                  "Module 4: Feature Engineering",
+                  "Module 5: Gesture Classification",
+                  "Module 6: Gesture Smoothing and Optimization",
+                ].map((mod, i) => (
+                  <article className="module-diagnostic" key={i}>
+                    <div className="metric-head">
+                      <span>{mod}</span>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </>
+          ) : null}
 
           {activeScreen === "metrics" ? (
             <>
@@ -975,27 +972,6 @@ export default function DashboardPage() {
           <div className="video-wrap">
             <video ref={videoRef} playsInline muted className="mirror-feed" />
             <canvas ref={overlayRef} />
-            {zoomAction && (
-              <div style={{
-                position: "absolute",
-                top: "50%",
-                left: "50%",
-                transform: "translate(-50%, -50%)",
-                fontSize: "2.2rem",
-                fontWeight: "700",
-                color: zoomAction === "Zoom In" ? "#00ff88" : "#ff9900",
-                textShadow: "0 2px 20px rgba(0,0,0,0.8)",
-                background: "rgba(0,0,0,0.55)",
-                padding: "10px 32px",
-                borderRadius: "14px",
-                pointerEvents: "none",
-                zIndex: 20,
-                letterSpacing: "2px",
-                whiteSpace: "nowrap",
-              }}>
-                {zoomAction === "Zoom In" ? "🔍+ Zoom In" : "🔍− Zoom Out"}
-              </div>
-            )}
           </div>
         </article>
       </section>

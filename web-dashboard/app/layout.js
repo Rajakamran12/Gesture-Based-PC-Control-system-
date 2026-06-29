@@ -3,7 +3,7 @@ import { AuthProvider } from "./auth-context";
 
 export const metadata = {
   title: "AI-Driven Gesture Based PC Control System",
-  description: "AI-Driven Gesture Based PC Control System",
+  description: "Web-based gesture dashboard ready for Vercel deployment",
 };
 
 export default function RootLayout({ children }) {

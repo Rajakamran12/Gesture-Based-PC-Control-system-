@@ -887,7 +887,7 @@ export default function DashboardPage() {
             <>
               <h3>Project Overview</h3>
               <p className="muted">
-                An AI-driven, real-time gesture-based PC control system that uses a webcam and hand-landmark detection to translate hand gestures into system actions — no mouse or keyboard required.
+                An AI-driven, real-time gesture-based PC control system that uses a webcam and hand-landmark detection to translate hand gestures into system actions.
               </p>
               <div className="module-diagnostics-grid" style={{ marginTop: "1.2rem" }}>
                 {[

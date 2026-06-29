@@ -13,6 +13,21 @@ const ACTIVE_MODULES = [
   "Gesture Classification",
   "Gesture Smoothing & Optimization",
 ];
+
+const GESTURE_ACTIONS = {
+  "Fist": "Zoom In",
+  "Open Palm": "Zoom Out",
+  "Two Finger": "Scroll",
+  "Point": "Move Cursor",
+  "Point Left": "Navigate Back",
+  "Point Right": "Navigate Forward",
+  "Swipe Left": "Swipe Left",
+  "Swipe Right": "Swipe Right",
+  "Zoom In": "Zooming In",
+  "Zoom Out": "Zooming Out",
+  "No hand": "No Action",
+  "None": "No Action",
+};
 const MODULE_DETAILS = {
   "Feature Engineering": "Normalizes hand landmarks and builds a compact feature vector for robust gesture recognition.",
   "Gesture Classification": "Runs rule-based + feature-assisted gesture labeling with confidence scoring.",
@@ -90,9 +105,9 @@ function detectSwipe(landmarks, previousLandmarks = null) {
   return null;
 }
 
-function classifyGesture(landmarks, previousPinchDistance = null, previousLandmarks = null) {
+function classifyGesture(landmarks, previousLandmarks = null) {
   if (!landmarks || landmarks.length !== 21) {
-    return { gesture: DEFAULT_GESTURE, pinchDistance: null };
+    return { gesture: DEFAULT_GESTURE };
   }
 
   const wrist = landmarks[0];
@@ -100,17 +115,6 @@ function classifyGesture(landmarks, previousPinchDistance = null, previousLandma
   const middle = landmarks[12];
   const ring = landmarks[16];
   const little = landmarks[20];
-  const thumb = landmarks[4];
-
-  const pinch = detectPinchZoom(landmarks, previousPinchDistance);
-  if (pinch.gesture) {
-    return { gesture: pinch.gesture, pinchDistance: pinch.distance };
-  }
-  
-  const swipe = detectSwipe(landmarks, previousLandmarks);
-  if (swipe) {
-    return { gesture: swipe, pinchDistance: pinch.distance };
-  }
 
   const fingersUp = [index, middle, ring, little].map((tip, i) => {
     const pipIndex = [6, 10, 14, 18][i];
@@ -118,15 +122,31 @@ function classifyGesture(landmarks, previousPinchDistance = null, previousLandma
   });
 
   const count = fingersUp.filter(Boolean).length;
-  if (count >= 4) return { gesture: "Open Palm", pinchDistance: pinch.distance };
-  if (count === 0) return { gesture: "Fist", pinchDistance: pinch.distance };
-  if (fingersUp[0] && fingersUp[1] && !fingersUp[2] && !fingersUp[3]) return { gesture: "Two Finger", pinchDistance: pinch.distance };
-  if (fingersUp[0] && !fingersUp[1] && !fingersUp[2] && !fingersUp[3]) {
-    if (index.x < wrist.x - 0.05) return { gesture: "Point Left", pinchDistance: pinch.distance };
-    if (index.x > wrist.x + 0.05) return { gesture: "Point Right", pinchDistance: pinch.distance };
-    return { gesture: "Point", pinchDistance: pinch.distance };
+  let baseGesture;
+  if (count >= 4) {
+    baseGesture = "Open Palm";
+  } else if (count === 0) {
+    baseGesture = "Fist";
+  } else if (fingersUp[0] && fingersUp[1] && !fingersUp[2] && !fingersUp[3]) {
+    baseGesture = "Two Finger";
+  } else if (fingersUp[0] && !fingersUp[1] && !fingersUp[2] && !fingersUp[3]) {
+    if (index.x < wrist.x - 0.05) baseGesture = "Point Left";
+    else if (index.x > wrist.x + 0.05) baseGesture = "Point Right";
+    else baseGesture = "Point";
+  } else {
+    baseGesture = "None";
   }
-  return { gesture: "None", pinchDistance: pinch.distance };
+
+  // Swipe: open palm moving sideways across frames
+  if (baseGesture === "Open Palm" && previousLandmarks) {
+    const prevWrist = previousLandmarks[0];
+    const xDelta = wrist.x - prevWrist.x;
+    if (Math.abs(xDelta) > 0.04) {
+      return { gesture: xDelta < 0 ? "Swipe Left" : "Swipe Right" };
+    }
+  }
+
+  return { gesture: baseGesture };
 }
 
 function clamp(value, min, max) {
@@ -178,14 +198,13 @@ function extractFeatureVector(landmarks) {
   };
 }
 
-function classifyWithFeatureEngineering(landmarks, handednessLabel = "", previousPinchDistance = null, previousLandmarks = null) {
+function classifyWithFeatureEngineering(landmarks, handednessLabel = "", previousLandmarks = null) {
   if (!landmarks || landmarks.length !== 21) {
     return {
       gesture: DEFAULT_GESTURE,
       confidence: 0,
       source: "feature-engineering",
       featureDim: 0,
-      pinchDistance: null,
     };
   }
 
@@ -196,20 +215,18 @@ function classifyWithFeatureEngineering(landmarks, handednessLabel = "", previou
       confidence: 0,
       source: "feature-engineering",
       featureDim: 0,
-      pinchDistance: null,
     };
   }
 
-  const gestureResult = classifyGesture(landmarks, previousPinchDistance, previousLandmarks);
+  const gestureResult = classifyGesture(landmarks, previousLandmarks);
   const baseGesture = gestureResult.gesture;
-  
-  if (baseGesture === "Zoom In" || baseGesture === "Zoom Out" || baseGesture === "Swipe Left" || baseGesture === "Swipe Right") {
+
+  if (baseGesture === "Swipe Left" || baseGesture === "Swipe Right") {
     return {
       gesture: baseGesture,
       confidence: 0.9,
       source: "feature-engineering",
       featureDim: features.featureDim,
-      pinchDistance: gestureResult.pinchDistance,
     };
   }
   
@@ -244,7 +261,6 @@ function classifyWithFeatureEngineering(landmarks, handednessLabel = "", previou
     confidence,
     source: "feature-engineering",
     featureDim: features.featureDim,
-    pinchDistance: gestureResult.pinchDistance,
   };
 }
 
@@ -536,7 +552,8 @@ export default function DashboardPage() {
   const lastFrameTimeRef = useRef(0);
   const smoothingRef = useRef(createSmoothingState());
   const previousLandmarksRef = useRef(null);
-  const previousPinchDistanceRef = useRef(null);
+  const previousStableGestureRef = useRef(DEFAULT_GESTURE);
+  const transientGestureTimeoutRef = useRef(null);
 
   const [running, setRunning] = useState(false);
   const [permissionOpen, setPermissionOpen] = useState(false);
@@ -660,6 +677,11 @@ export default function DashboardPage() {
     setStatus("Stopped");
     setLastAction("Stopped by user");
 
+    if (transientGestureTimeoutRef.current) {
+      clearTimeout(transientGestureTimeoutRef.current);
+      transientGestureTimeoutRef.current = null;
+    }
+
     if (animationRef.current) {
       cancelAnimationFrame(animationRef.current);
       animationRef.current = null;
@@ -714,13 +736,11 @@ export default function DashboardPage() {
     const classification = classifyWithFeatureEngineering(
       landmarks, 
       handednessLabel, 
-      previousPinchDistanceRef.current,
       previousLandmarksRef.current
     );
     
     if (landmarks) {
       previousLandmarksRef.current = landmarks;
-      previousPinchDistanceRef.current = classification.pinchDistance;
     }
     
     const smoothing = smoothGesture(
@@ -731,7 +751,28 @@ export default function DashboardPage() {
     );
 
     const nextStableGesture = smoothing.stableGesture;
-    setGesture(nextStableGesture);
+    const prevStable = previousStableGestureRef.current;
+
+    // Detect zoom via fist ↔ open palm transitions
+    let displayGesture = nextStableGesture;
+    if (smoothing.changed) {
+      if ((prevStable === "Open Palm" || prevStable === "None") && nextStableGesture === "Fist") {
+        displayGesture = "Zoom In";
+        if (transientGestureTimeoutRef.current) clearTimeout(transientGestureTimeoutRef.current);
+        transientGestureTimeoutRef.current = setTimeout(() => {
+          setGesture(nextStableGesture);
+        }, 900);
+      } else if (prevStable === "Fist" && (nextStableGesture === "Open Palm" || nextStableGesture === "None")) {
+        displayGesture = "Zoom Out";
+        if (transientGestureTimeoutRef.current) clearTimeout(transientGestureTimeoutRef.current);
+        transientGestureTimeoutRef.current = setTimeout(() => {
+          setGesture(nextStableGesture);
+        }, 900);
+      }
+    }
+    previousStableGestureRef.current = nextStableGesture;
+
+    setGesture(displayGesture);
     setRawGesture(classification.gesture);
     setRawConfidence(classification.confidence);
     setConsensusRatio(smoothing.consensus);
@@ -740,15 +781,8 @@ export default function DashboardPage() {
     setClassificationSource(classification.source);
     setHandsCount(result?.landmarks?.length ?? 0);
 
-    if (nextStableGesture === "Zoom In") setLastAction("Zoom In");
-    else if (nextStableGesture === "Zoom Out") setLastAction("Zoom Out");
-    else if (nextStableGesture === "Swipe Left") setLastAction("Swipe Left");
-    else if (nextStableGesture === "Swipe Right") setLastAction("Swipe Right");
-    else if (nextStableGesture === "Open Palm") setLastAction("Play/Pause (simulated)");
-    else if (nextStableGesture === "Fist") setLastAction("Click (simulated)");
-    else if (nextStableGesture === "Point Left") setLastAction("Back (simulated)");
-    else if (nextStableGesture === "Point Right") setLastAction("Forward (simulated)");
-    else setLastAction("No action");
+    const action = GESTURE_ACTIONS[displayGesture] ?? GESTURE_ACTIONS[nextStableGesture] ?? "Monitoring";
+    setLastAction(action);
 
     animationRef.current = requestAnimationFrame(runLoop);
   }
@@ -873,6 +907,7 @@ export default function DashboardPage() {
             <h3>Operations Dashboard</h3>
             <p className="muted">Choose a screen to view meaningful runtime data.</p>
             <button className={`sidebar-tab ${activeScreen === "overview" ? "active" : ""}`} onClick={() => setActiveScreen("overview")}>Overview</button>
+            <button className={`sidebar-tab ${activeScreen === "gestures" ? "active" : ""}`} onClick={() => setActiveScreen("gestures")}>Gestures</button>
             <button className={`sidebar-tab ${activeScreen === "metrics" ? "active" : ""}`} onClick={() => setActiveScreen("metrics")}>Metrics</button>
             <button className={`sidebar-tab ${activeScreen === "modules" ? "active" : ""}`} onClick={() => setActiveScreen("modules")}>Modules</button>
             <button className={`sidebar-tab ${activeScreen === "permissions" ? "active" : ""}`} onClick={() => setActiveScreen("permissions")}>Permissions</button>
@@ -883,6 +918,38 @@ export default function DashboardPage() {
 
       <section className="content">
         <article className="card screen-panel">
+          {activeScreen === "gestures" ? (
+            <>
+              <h3>Gesture → Action Reference</h3>
+              <p className="muted">All supported hand gestures and their mapped PC control actions.</p>
+              <div className="metric-grid" style={{ marginTop: "1rem" }}>
+                {[
+                  { gesture: "✊ Fist (close hand)", action: "Zoom In", desc: "Close all fingers into a fist" },
+                  { gesture: "🖐 Open Palm (open hand)", action: "Zoom Out", desc: "Spread all fingers open" },
+                  { gesture: "✌ Two Fingers", action: "Scroll", desc: "Index and middle fingers up" },
+                  { gesture: "☝ Point", action: "Move Cursor", desc: "Only index finger extended" },
+                  { gesture: "👈 Point Left", action: "Navigate Back", desc: "Index finger pointing left of wrist" },
+                  { gesture: "👉 Point Right", action: "Navigate Forward", desc: "Index finger pointing right of wrist" },
+                  { gesture: "← Swipe Left", action: "Swipe Left", desc: "Open palm moved quickly to the left" },
+                  { gesture: "→ Swipe Right", action: "Swipe Right", desc: "Open palm moved quickly to the right" },
+                ].map((item) => (
+                  <article className="metric-card" key={item.gesture} style={{ minHeight: "80px" }}>
+                    <div className="metric-head">
+                      <span style={{ fontSize: "0.85rem" }}>{item.gesture}</span>
+                      <strong style={{ color: "#2be5a7", fontSize: "0.8rem" }}>{item.action}</strong>
+                    </div>
+                    <p className="muted" style={{ margin: "4px 0 0 0", fontSize: "0.75rem" }}>{item.desc}</p>
+                  </article>
+                ))}
+              </div>
+              <div style={{ marginTop: "1.2rem", padding: "12px 16px", background: "rgba(43,229,167,0.08)", borderRadius: "8px", border: "1px solid rgba(43,229,167,0.25)" }}>
+                <p style={{ margin: 0, fontSize: "0.85rem", color: "#2be5a7" }}>
+                  <strong>Current:</strong> {gesture} → <strong>{GESTURE_ACTIONS[gesture] ?? "Monitoring"}</strong>
+                </p>
+              </div>
+            </>
+          ) : null}
+
           {activeScreen === "overview" ? (
             <>
               <h3>Project Overview</h3>
@@ -969,6 +1036,37 @@ export default function DashboardPage() {
         </article>
 
         <article className="card video-card">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px", padding: "0 4px" }}>
+            <span style={{ fontSize: "0.8rem", color: "#a0a0a0" }}>Live Camera Feed</span>
+            <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+              <span style={{
+                padding: "3px 10px",
+                borderRadius: "12px",
+                fontSize: "0.78rem",
+                fontWeight: "600",
+                background: gesture === "Zoom In" || gesture === "Zoom Out" ? "rgba(43,229,167,0.25)" : "rgba(43,229,167,0.1)",
+                color: "#2be5a7",
+                border: "1px solid rgba(43,229,167,0.35)",
+                minWidth: "80px",
+                textAlign: "center",
+              }}>
+                {gesture}
+              </span>
+              <span style={{
+                padding: "3px 10px",
+                borderRadius: "12px",
+                fontSize: "0.78rem",
+                fontWeight: "600",
+                background: "rgba(246,193,91,0.15)",
+                color: "#f6c15b",
+                border: "1px solid rgba(246,193,91,0.3)",
+                minWidth: "90px",
+                textAlign: "center",
+              }}>
+                {GESTURE_ACTIONS[gesture] ?? lastAction}
+              </span>
+            </div>
+          </div>
           <div className="video-wrap">
             <video ref={videoRef} playsInline muted className="mirror-feed" />
             <canvas ref={overlayRef} />
